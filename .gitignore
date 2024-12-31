@@ -1,6 +1,7 @@
 data
 old
-compare
+compare/*
+!compare/bin_pheno_qtl_counts.tsv
 !compare/coverage_manifest.tsv
 !compare/Snakefile
 residual/covar
