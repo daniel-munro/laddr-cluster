@@ -1,0 +1,74 @@
+# Extended configuration for latent-rna pipeline
+# Includes all options for recommended and alternative binning and modeling methods
+
+# Input files
+input:
+  # GTF annotation file path
+  gtf: ../../Homo_sapiens.GRCh38.106.chr7.gtf
+  # Chromosome lengths file tab-delimited file with chromosome name and length
+  # in first two columns, no header. Additional columns are ignored. (e.g.
+  # chrNameLength.txt from STAR index or the *.fa.fai genome FASTA index file)
+  chromosomes: ../../../data/input/chr_lengths.genome
+  # How to specify datasets and samples and locate bigWig coverage files
+  coverage:
+    # Method to use for locating bigWig files: directory or manifest
+    method: manifest
+    # If method is "directory", path of the directory whose contents will be read as {dataset}/{sample}.bw
+    directory: covg_bigwig
+    # If method is "manifest", path to a headerless tab-delimited manifest file with three columns:
+    # dataset, sample, path to bigWig file.
+    manifest: ../../coverage_manifest.tsv
+  # Optional: List of paths to phenotype tables (BED format) to regress out
+  # pheno_paths:
+  #   - path/to/modality1.bed.gz
+  #   - path/to/modality2.bed.gz
+
+# Binning parameters
+binning:
+  # Method to use for binning: adaptive_covgcorr, adaptive_covgvar, adaptive_diffvar, fixed_width, or fixed_count
+  # Whether to determine bins adaptively from coverage data, split all coding/noncoding regions into fixed-width bins, or split each region into a fixed number of bins.
+  # TODO describe each method in more detail
+  method: adaptive_diffvar
+  # Number of genes (at most) per batch
+  batch_size: 200
+  # Maximum width of any bin
+  max_bin_width: 1024
+  # Parameters for adaptive binning
+  adaptive:
+    # Maximum number of coverage samples to use for binning. Samples from all datasets are used, and a random subset is selected if there are more than this number.
+    max_samples: 64
+    # For method "adaptive_covgvar" or "adaptive_diffvar", approximate number of bins to create per gene on average.  
+    bins_per_gene: 384
+    # For method "adaptive_covgcorr", minimum allowed mean total coverage per sample for a bin.
+    min_mean_total_covg: 128
+    # For method "adaptive_covgcorr", maximum allowed correlation between normalized coverage of adjacent bins.
+    max_corr: 0.8
+  # Parameters for fixed_width binning  
+  fixed_width:
+    # Width of bins for coding (exonic) regions of the genes.
+    coding: 16
+    # Width of bins for noncoding (non-exonic) regions of the genes.
+    noncoding: 128
+  # Parameters for fixed_count binning
+  fixed_count:
+    # Number of bins per exonic/intronic region
+    n_bins_per_region: 4
+
+# Model parameters
+model:
+  # Set to true if the samples being processed are different from the ones used
+  # to train the model. In this case, the existing coverage normalization
+  # parameters will be applied to the new samples so they are normalized
+  # consistently with the training data.
+  use_existing: false
+  # Maximum variance explained by PCs to keep. Pass 0 or 1 for no variance explained cutoff.
+  var_explained_max: 0.8
+  # Maximum number of PCs to keep. Pass 0 for no cutoff.
+  n_pcs_max: 16
+  # Whether to use functional PCA
+  use_fpca: false
+  fpca:
+    # Use bin numbers ('bin') or genomic positions ('pos') as x-values
+    x_values: bin
+    # Basis function: discrete or spline
+    basis: discrete

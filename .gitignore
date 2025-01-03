@@ -1,9 +1,12 @@
 data
 old
-compare/*
+compare/trial*/*/*
+compare/old*
+compare/Homo_sapiens.GRCh38.106.chr7.gtf
 !compare/bin_pheno_qtl_counts.tsv
 !compare/coverage_manifest.tsv
 !compare/Snakefile
+!compare/trial*/*/config.yaml
 residual/covar
 residual/full/covg_norm
 residual/full/gene_bins

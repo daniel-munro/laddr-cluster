@@ -1,6 +1,6 @@
 from pathlib import Path
 
-DEFAULT_DIR = 'binning-n_4' # Directory to read universal files like n_batches.txt
+DEFAULT_DIR = 'trial0/binning-n_4' # Directory to read universal files like n_batches.txt
 
 BATCH_FILE = Path(f'{DEFAULT_DIR}/info/n_batches.txt')
 assert BATCH_FILE.exists(), f'{BATCH_FILE} not found. Run latent-rna setup first.'
@@ -33,74 +33,83 @@ for n in [6, 8, 10, 12, 14, 16, 20, 24]:
 models += ['fpca_xpos_disc', 'fpca_xpos_spline', 'fpca_xbin_spline']
 
 params = [f'binning-{x}' for x in binnings] + [f'model-{x}' for x in models]
+trials = [f'trial{i}' for i in range(3)]
 
 localrules:
     latent_pheno_groups,
 
 rule all:
     input:
-        # expand('binning-{binning}/gene_bins/batch_{batch}.bed.gz', binning=['n_4'], batch=range(N_BATCHES)),
-        # expand('binning-{binning}/covg_norm/Geuvadis/batch_{batch}.npy', binning=['n_4'], batch=range(N_BATCHES)),
-        # expand('{param}/models/models_batch_{batch}.pickle', param=['binning-n_4'], batch=range(N_BATCHES)),
-        # expand('binning-{binning}/phenotypes/latent_phenos.Geuvadis.tsv.gz', binning=binnings),
-        # expand('{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', param=['binning-n_4']),
-        # expand('qtl/latent-{param}.bed.gz', param=params),
-        expand('qtl/latent-{param}.cis_independent_qtl.txt.gz', param=params),
+        # expand('{trial}/binning-{binning}/gene_bins/batch_{batch}.bed.gz', trial=trials, binning=['n_4'], batch=range(N_BATCHES)),
+        # expand('{trial}/binning-{binning}/covg_norm/Geuvadis/batch_{batch}.npy', trial=trials, binning=['n_4'], batch=range(N_BATCHES)),
+        # expand('{trial}/{param}/models/models_batch_{batch}.pickle', trial=trials, param=['binning-n_4'], batch=range(N_BATCHES)),
+        # expand('{trial}/binning-{binning}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, binning=binnings),
+        # expand('{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, param=['binning-n_4']),
+        # expand('{trial}/qtl/latent-{param}.bed.gz', trial=trials, param=params),
+        # expand('{trial}/qtl/latent-{param}.cis_independent_qtl.txt.gz', trial=trials, param=params),
         'bin_pheno_qtl_counts.tsv',
 
 rule get_gene_bins:
     """Divide gene features into bins"""
     input:
-        genes = '{param}/info/genes.tsv',
-        exons = '{param}/info/exons.tsv.gz',
+        genes = '{trial}/{param}/info/genes.tsv',
+        exons = '{trial}/{param}/info/exons.tsv.gz',
         # bw = sample_table['path'].tolist(),
     output:
-        beds = '{param}/gene_bins/batch_{batch}.bed.gz',
+        beds = '{trial}/{param}/gene_bins/batch_{batch}.bed.gz',
+    params:
+        project_dir = '{trial}/{param}',
     resources:
         mem_mb = 16000,
     shell:
         """
-        latent-rna binning -p {wildcards.param} -b {wildcards.batch}
+        latent-rna binning -p {params.project_dir} -b {wildcards.batch}
         """
 
 rule prepare_coverage:
     """Assemble coverage across samples, normalize, regress out explicit phenotypes, and bin into batches for PCA"""
     input:
         # bw = lambda w: sample_table.loc[sample_table['dataset'] == w.dataset, 'path'].tolist(),
-        bins = '{param}/gene_bins/batch_{batch}.bed.gz',
+        bins = '{trial}/{param}/gene_bins/batch_{batch}.bed.gz',
         # phenos = config['input']['pheno_paths'],
     output:
-        covg = '{param}/covg_norm/Geuvadis/batch_{batch}.npy',
-        bins = '{param}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz',
+        covg = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.npy',
+        bins = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz',
+    params:
+        project_dir = '{trial}/{param}',
     resources:
-        walltime = 12,
+        walltime = 24,
     shell:
         """
-        latent-rna coverage -p {wildcards.param} -b {wildcards.batch}
+        latent-rna coverage -p {params.project_dir} -b {wildcards.batch}
         """
 
 rule fit_models:
     """Fit models to latent features"""
     input:
-        covg_norm = '{param}/covg_norm/Geuvadis/batch_{batch}.npy',
-        bins = '{param}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz',
+        covg_norm = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.npy',
+        bins = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz',
     output:
-        models = '{param}/models/models_batch_{batch}.pickle',
+        models = '{trial}/{param}/models/models_batch_{batch}.pickle',
+    params:
+        project_dir = '{trial}/{param}',
     shell:
         """
-        latent-rna fit -p {wildcards.param} -b {wildcards.batch}
+        latent-rna fit -p {params.project_dir} -b {wildcards.batch}
         """
 
 rule get_latent_phenotypes:
     """Apply models to generate latent phenotypes"""
     input:
-        covg_norm = expand('{{param}}/covg_norm/Geuvadis/batch_{batch}.npy', batch=range(N_BATCHES)),
-        models = expand('{{param}}/models/models_batch_{batch}.pickle', batch=range(N_BATCHES)),
+        covg_norm = expand('{{trial}}/{{param}}/covg_norm/Geuvadis/batch_{batch}.npy', batch=range(N_BATCHES)),
+        models = expand('{{trial}}/{{param}}/models/models_batch_{batch}.pickle', batch=range(N_BATCHES)),
     output:
-        phenos = '{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz',
+        phenos = '{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz',
+    params:
+        project_dir = '{trial}/{param}',
     shell:
         """
-        latent-rna transform -p {wildcards.param}
+        latent-rna transform -p {params.project_dir}
         """
 
 ##################################
@@ -110,12 +119,12 @@ rule get_latent_phenotypes:
 rule assemble_latent_bed:
     """Add gene info to latent phenotypes to generate BED file"""
     input:
-        phenos = '{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz',
+        phenos = '{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz',
         ref_anno = ref_anno,
     output:
-        bed = 'qtl/latent-{param}.unnorm.bed',
+        bed = '{trial}/qtl/latent-{param}.unnorm.bed',
     params:
-        qtl_dir = 'qtl',
+        qtl_dir = '{trial}/qtl',
     resources:
         mem_mb = 16000,
     shell:
@@ -131,12 +140,12 @@ rule assemble_latent_bed:
 rule normalize_latent:
     """Quantile-normalize values for QTL mapping"""
     input:
-        bed = 'qtl/latent-{param}.unnorm.bed',
+        bed = '{trial}/qtl/latent-{param}.unnorm.bed',
         samples = input_dir / 'samples.txt',
     output:
-        bed = 'qtl/latent-{param}.bed.gz',
+        bed = '{trial}/qtl/latent-{param}.bed.gz',
     params:
-        bed = 'qtl/latent-{param}.bed',
+        bed = '{trial}/qtl/latent-{param}.bed',
     resources:
         mem_mb = 16000,
     shell:
@@ -151,9 +160,9 @@ rule normalize_latent:
 rule index_bed:
     """Index a BED file."""
     input:
-        bed = 'qtl/latent-{param}.bed.gz',
+        bed = '{trial}/qtl/latent-{param}.bed.gz',
     output:
-        index = 'qtl/latent-{param}.bed.gz.tbi'
+        index = '{trial}/qtl/latent-{param}.bed.gz.tbi'
     shell:
         'tabix {input.bed}'
 
@@ -161,9 +170,9 @@ rule index_bed:
 rule latent_pheno_groups:
     """Group phenotypes by gene for tensorQTL"""
     input:
-        bed = 'qtl/latent-{param}.bed.gz',
+        bed = '{trial}/qtl/latent-{param}.bed.gz',
     output:
-        groups = 'qtl/latent-{param}.phenotype_groups.txt',
+        groups = '{trial}/qtl/latent-{param}.phenotype_groups.txt',
     shell:
         """
         zcat < {input} \
@@ -180,11 +189,11 @@ rule prune_for_covar:
     input:
         plink = multiext(geno_prefix, '.bed', '.bim', '.fam'),
     output:
-        vcf = 'covar/geno_pruned.vcf.gz',
+        vcf = '{trial}/covar/geno_pruned.vcf.gz',
     params:
         geno_prefix = geno_prefix,
-        covar_dir = 'covar',
-        pruned_prefix = 'covar/geno_pruned',
+        covar_dir = '{trial}/covar',
+        pruned_prefix = '{trial}/covar/geno_pruned',
     shell:
         # --geno 0.05 filters variants with >5% missing values (the rest will be imputed).
         # Default is 0 so that samples with many more genotyped variants than others don't
@@ -207,10 +216,10 @@ rule prune_for_covar:
 rule covariates:
     """Compute genotype and expression PCs and combine."""
     input:
-        vcf = 'covar/geno_pruned.vcf.gz',
-        bed = 'qtl/latent-{param}.bed.gz',
+        vcf = '{trial}/covar/geno_pruned.vcf.gz',
+        bed = '{trial}/qtl/latent-{param}.bed.gz',
     output:
-        tsv = 'covar/latent-{param}.covar.tsv',
+        tsv = '{trial}/covar/latent-{param}.covar.tsv',
     params:
         n_geno_pcs = 5,
         n_pheno_pcs = 20,
@@ -236,12 +245,12 @@ rule tensorqtl_perm:
     """
     input:
         geno = multiext(geno_prefix, '.bed', '.bim', '.fam'),
-        bed = 'qtl/latent-{param}.bed.gz',
-        bedi = 'qtl/latent-{param}.bed.gz.tbi',
-        covar = 'covar/latent-{param}.covar.tsv',
-        groups = 'qtl/latent-{param}.phenotype_groups.txt',
+        bed = '{trial}/qtl/latent-{param}.bed.gz',
+        bedi = '{trial}/qtl/latent-{param}.bed.gz.tbi',
+        covar = '{trial}/covar/latent-{param}.covar.tsv',
+        groups = '{trial}/qtl/latent-{param}.phenotype_groups.txt',
     output:
-        qtl = 'qtl/latent-{param}.cis_qtl.txt.gz',
+        qtl = '{trial}/qtl/latent-{param}.cis_qtl.txt.gz',
     params:
         geno_prefix = geno_prefix,
     resources:
@@ -263,13 +272,13 @@ rule tensorqtl_independent:
     """Use stepwise regression to identify multiple conditionally independent cis-QTLs per phenotype."""
     input:
         geno = multiext(geno_prefix, '.bed', '.bim', '.fam'),
-        bed = 'qtl/latent-{param}.bed.gz',
-        bedi = 'qtl/latent-{param}.bed.gz.tbi',
-        covar = 'covar/latent-{param}.covar.tsv',
-        groups = 'qtl/latent-{param}.phenotype_groups.txt',
-        cis = 'qtl/latent-{param}.cis_qtl.txt.gz',
+        bed = '{trial}/qtl/latent-{param}.bed.gz',
+        bedi = '{trial}/qtl/latent-{param}.bed.gz.tbi',
+        covar = '{trial}/covar/latent-{param}.covar.tsv',
+        groups = '{trial}/qtl/latent-{param}.phenotype_groups.txt',
+        cis = '{trial}/qtl/latent-{param}.cis_qtl.txt.gz',
     output:
-        qtl = 'qtl/latent-{param}.cis_independent_qtl.txt.gz',
+        qtl = '{trial}/qtl/latent-{param}.cis_independent_qtl.txt.gz',
     params:
         geno_prefix = geno_prefix,
     resources:
@@ -295,24 +304,27 @@ rule tensorqtl_independent:
 rule count_bins_phenos_qtls:
     """Count the number of bins, phenotypes, and QTLs for each binning and model setting."""
     input:
-        bins = expand('{param}/gene_bins/batch_{batch}.bed.gz', param=params, batch=range(N_BATCHES)),
-        phenos = expand('{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', param=params),
-        phenos_tested = expand('qtl/latent-{param}.phenotype_groups.txt', param=params),
-        qtls = expand('qtl/latent-{param}.cis_independent_qtl.txt.gz', param=params),
+        bins = expand('{trial}/{param}/gene_bins/batch_{batch}.bed.gz', trial=trials, param=params, batch=range(N_BATCHES)),
+        phenos = expand('{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, param=params),
+        phenos_tested = expand('{trial}/qtl/latent-{param}.phenotype_groups.txt', trial=trials, param=params),
+        qtls = expand('{trial}/qtl/latent-{param}.cis_independent_qtl.txt.gz', trial=trials, param=params),
     output:
         tsv = 'bin_pheno_qtl_counts.tsv',
     params:
         params = params,
+        trials = trials,
     shell:
         """
-        echo -e "type\tparam\tn_bins\tn_phenos\tn_phenos_tested\tn_qtls" > {output.tsv}
+        echo -e "type\tparam\ttrial\tn_bins\tn_phenos\tn_phenos_tested\tn_qtls" > {output.tsv}
         for param in {params.params}; do
             type=$(echo $param | cut -d- -f1)
             par=$(echo $param | cut -d- -f2)
-            n_bins=$(zcat $param/gene_bins/batch_*.bed.gz | wc -l)
-            n_phenos=$(zcat $param/phenotypes/latent_phenos.Geuvadis.tsv.gz | tail -n+2 | wc -l)
-            n_phenos_tested=$(cat qtl/latent-$param.phenotype_groups.txt | wc -l)
-            n_qtls=$(zcat qtl/latent-$param.cis_independent_qtl.txt.gz | tail -n+2 | wc -l)
-            echo -e "$type\t$par\t$n_bins\t$n_phenos\t$n_phenos_tested\t$n_qtls" >> {output.tsv}
+            for trial in {params.trials}; do
+                n_bins=$(zcat $trial/$param/gene_bins/batch_*.bed.gz | wc -l)
+                n_phenos=$(zcat $trial/$param/phenotypes/latent_phenos.Geuvadis.tsv.gz | tail -n+2 | wc -l)
+                n_phenos_tested=$(cat $trial/qtl/latent-$param.phenotype_groups.txt | wc -l)
+                n_qtls=$(zcat $trial/qtl/latent-$param.cis_independent_qtl.txt.gz | tail -n+2 | wc -l)
+                echo -e "$type\t$par\t$trial\t$n_bins\t$n_phenos\t$n_phenos_tested\t$n_qtls" >> {output.tsv}
+            done
         done
         """
