@@ -256,7 +256,7 @@ rule tensorqtl_perm:
     resources:
         walltime = 12,
         mem_mb = 16000,
-        partition_etc = '--account=gpu-gdml-investor --partition=gpu-gdml-investor --gres=gpu:1',
+        # Define slurm_partition, slurm_account, and slurm_extra for GPU jobs as needed in the Snakemake profile config.yaml
     shell:
         """
         python ~/tools/Pantry/Pheast/scripts/run_tensorqtl.py \
@@ -284,7 +284,7 @@ rule tensorqtl_independent:
     resources:
         walltime = 20,
         mem_mb = 16000,
-        partition_etc = '--account=gpu-gdml-investor --partition=gpu-gdml-investor --gres=gpu:1',
+        # Define slurm_partition, slurm_account, and slurm_extra for GPU jobs as needed in the Snakemake profile config.yaml
     shell:
         """
         python ~/tools/Pantry/Pheast/scripts/run_tensorqtl.py \
