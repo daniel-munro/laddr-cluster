@@ -2,8 +2,8 @@
 
 # Input files
 input:
-  # GTF annotation file path. Must be the collapsed annotation produced by `collapse_annotation.py`.
-  gtf: ../../../pantry/Geuvadis/input/human_ref/Homo_sapiens.GRCh38.106.gtf
+  # GTF annotation file path
+  gtf: ../../../pantry/GTEx/ref/gencode.v26.annotation.gtf
   # How to specify datasets and samples and locate bigWig coverage files
   coverage:
     # Method to use for locating bigWig files: directory or manifest
@@ -14,26 +14,24 @@ input:
     # dataset, sample, path to bigWig file.
     manifest: coverage_manifest.tsv
   # Optional: List of paths to phenotype tables (BED format) to regress out
-  pheno_paths:
-    - ../../../pantry/Geuvadis/output/alt_polyA.bed.gz
-    # - ../../../pantry/Geuvadis/output/alt_TSS.bed.gz
-    - ../../../pantry/Geuvadis/output/expression.bed.gz
-    - ../../../pantry/Geuvadis/output/isoforms.bed.gz
-    - ../../../pantry/Geuvadis/output/splicing.bed.gz
-    - ../../../pantry/Geuvadis/output/stability.bed.gz
+  # pheno_paths:
+  #   - path/to/modality1.bed.gz
+  #   - path/to/modality2.bed.gz
 
 # Binning parameters
 binning:
   # Number of genes (at most) per batch
-  batch_size: 100
+  batch_size: 800
   # Maximum width of any bin
   max_bin_width: 1024
-  # Parameters for adaptive binning
-  adaptive:
-    # Maximum number of coverage samples to use for binning. Samples from all datasets are used, and a random subset is selected if there are more than this number.
-    max_samples: 64
-    # Approximate number of bins to create per gene on average.  
-    bins_per_gene: 256
+  # # Parameters for adaptive binning
+  # adaptive:
+  #   # Maximum number of coverage samples to use for binning. Samples from all datasets are used, and a random subset is selected if there are more than this number.
+  #   max_samples: 64
+  #   # Approximate number of bins to create per gene on average.  
+  #   bins_per_gene: 256
+  ## Not running enough samples for adaptive binning to work
+  method: fixed_width
 
 # Model parameters
 model:

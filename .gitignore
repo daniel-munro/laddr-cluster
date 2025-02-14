@@ -11,6 +11,11 @@ held_out/*/*
 held_out/*/*/*
 !held_out/no_*/config.yaml
 !held_out/no_*/Snakefile
+recount3/bigwig
+recount3/brain-blood/*
+!recount3/brain-blood/config.yaml
+!recount3/brain-blood/coverage_manifest.tsv
+!recount3/brain-blood/Snakefile
 residual/*/*
 residual/*/*/*
 !residual/*/config.yaml

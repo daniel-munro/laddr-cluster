@@ -1,0 +1,17 @@
+sample	tissue	url
+GTEX-1A8G7-0011-R2a-SM-7IGQI	Brain	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/IN/BRAIN/QI/gtex.base_sums.BRAIN_GTEX-1A8G7-0011-R2a-SM-7IGQI.1.ALL.bw
+GTEX-1HB9E-2926-SM-D4P3S	Brain	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/IN/BRAIN/3S/gtex.base_sums.BRAIN_GTEX-1HB9E-2926-SM-D4P3S.1.ALL.bw
+GTEX-1JJEA-0011-R4a-SM-EXUTC	Brain	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/IN/BRAIN/TC/gtex.base_sums.BRAIN_GTEX-1JJEA-0011-R4a-SM-EXUTC.1.ALL.bw
+GTEX-145LU-0011-R10a-SM-5PNWJ	Brain	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/IN/BRAIN/WJ/gtex.base_sums.BRAIN_GTEX-145LU-0011-R10a-SM-5PNWJ.1.ALL.bw
+GTEX-1F6IF-0011-R1b-SM-9WG78	Brain	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/IN/BRAIN/78/gtex.base_sums.BRAIN_GTEX-1F6IF-0011-R1b-SM-9WG78.1.ALL.bw
+GTEX-1J8Q2-0011-R7a-SM-CKZPF	Brain	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/IN/BRAIN/PF/gtex.base_sums.BRAIN_GTEX-1J8Q2-0011-R7a-SM-CKZPF.1.ALL.bw
+GTEX-1HCU6-3126-SM-CL54L	Brain	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/IN/BRAIN/4L/gtex.base_sums.BRAIN_GTEX-1HCU6-3126-SM-CL54L.1.ALL.bw
+GTEX-1C6VQ-0011-R9a-SM-7SB85	Brain	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/IN/BRAIN/85/gtex.base_sums.BRAIN_GTEX-1C6VQ-0011-R9a-SM-7SB85.1.ALL.bw
+GTEX-1RAZQ-0005-SM-DO93U	Blood	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/OD/BLOOD/3U/gtex.base_sums.BLOOD_GTEX-1RAZQ-0005-SM-DO93U.1.ALL.bw
+GTEX-Q2AG-0005-SM-33HBX	Blood	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/OD/BLOOD/BX/gtex.base_sums.BLOOD_GTEX-Q2AG-0005-SM-33HBX.1.ALL.bw
+GTEX-1KD4Q-0006-SM-DIPEA	Blood	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/OD/BLOOD/EA/gtex.base_sums.BLOOD_GTEX-1KD4Q-0006-SM-DIPEA.1.ALL.bw
+GTEX-15SDE-0006-SM-7PC19	Blood	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/OD/BLOOD/19/gtex.base_sums.BLOOD_GTEX-15SDE-0006-SM-7PC19.1.ALL.bw
+GTEX-1GN1V-0006-SM-ADEHD	Blood	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/OD/BLOOD/HD/gtex.base_sums.BLOOD_GTEX-1GN1V-0006-SM-ADEHD.1.ALL.bw
+GTEX-11DXY-0006-SM-5NQ8N	Blood	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/OD/BLOOD/8N/gtex.base_sums.BLOOD_GTEX-11DXY-0006-SM-5NQ8N.1.ALL.bw
+GTEX-1GN2E-0001-SM-EYYVU	Blood	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/OD/BLOOD/VU/gtex.base_sums.BLOOD_GTEX-1GN2E-0001-SM-EYYVU.1.ALL.bw
+GTEX-14PJP-0005-SM-7P8OM	Blood	http://duffel.rail.bio/recount3/human/data_sources/gtex/base_sums/OD/BLOOD/OM/gtex.base_sums.BLOOD_GTEX-14PJP-0005-SM-7P8OM.1.ALL.bw
