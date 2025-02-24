@@ -7,6 +7,15 @@ compare/Homo_sapiens.GRCh38.106.chr7.gtf
 !compare/coverage_manifest.tsv
 !compare/Snakefile
 !compare/trial*/*/config.yaml
+gtex/data
+gtex/gtex/*
+!gtex/gtex/config.yaml
+!gtex/gtex/coverage_manifest.tsv
+!gtex/gtex/Snakefile
+gtex/gtex5/*
+!gtex/gtex5/config.yaml
+!gtex/gtex5/coverage_manifest.tsv
+!gtex/gtex5/Snakefile
 held_out/*/*
 held_out/*/*/*
 !held_out/no_*/config.yaml
