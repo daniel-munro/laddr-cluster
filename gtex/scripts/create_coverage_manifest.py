@@ -5,22 +5,16 @@ from pathlib import Path
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", help="Input TSV with sample, tissue, url columns")
-    parser.add_argument("-g", help="File with GTEx individual IDs for individuals with genotypes to include")
+    parser.add_argument("-s", help="File with sample IDs to filter to")
     parser.add_argument("-o", help="Output manifest file")
     return parser.parse_args()
 
 def main():
     args = parse_args()
     
-    # Read individual IDs included in the genotypes
-    individual_ids = pd.read_csv(args.g, header=None, names=['individual']).individual.tolist()
-    
+    sample_ids = pd.read_csv(args.s, header=None, names=['id']).id.tolist()
     df = pd.read_csv(args.i, sep='\t')
-    
-    df['individual'] = df['sample'].str.split('-').str[:2].str.join('-')
-    # Only include individuals with genotypes
-    df = df[df.individual.isin(individual_ids)]
-    
+    df = df[df['sample'].isin(sample_ids)]
     df['file_name'] = df.url.apply(lambda x: Path(x).name)
     
     # Store total sample count before filtering
