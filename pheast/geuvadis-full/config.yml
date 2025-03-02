@@ -6,7 +6,7 @@
 phenotype_dir: input/phenotypes
 
 ## Give the path prefix to genotypes in plink1 (bed/bim/fam) format:
-geno_prefix: ../../../../pantry/GTEx/geno/gtex
+geno_prefix: ../../../pantry/Geuvadis/input/genotype/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.nochr.chr1-22
 
 ## Samples to include:
 samples_file: input/samples.txt
@@ -14,7 +14,7 @@ samples_file: input/samples.txt
 ## Optional parameters
 # Provide a list of SNP IDs to include when computing TWAS weights:
 # It is recommended to include only SNPs present in the LD reference used later for TWAS.
-twas_snps: ../../../../pantry/GTEx/geno/LD_SNPs.txt
+twas_snps: ../../../pantry/GTEx/geno/LD_SNPs.txt
 # Path to intermediate file directory, in case you don't want it inside this project directory due to its size:
 # This directory will be created if it doesn't exist, and will contain any generated (i.e. not input) files besides the final analysis results.
 # intermediate_dir: intermediate
@@ -50,11 +50,11 @@ analyses:
   # heritability:
   #   files:
   #   - '{modality}.hsq.tsv'
-  qtl:
-    files:
-    - '{modality}.cis_qtl.txt.gz'
-    - '{modality}.cis_independent_qtl.txt.gz'
-    # - '{modality}.trans_qtl.txt.gz'
+  # qtl:
+  #   files:
+  #   - '{modality}.cis_qtl.txt.gz'
+  #   - '{modality}.cis_independent_qtl.txt.gz'
+  #   # - '{modality}.trans_qtl.txt.gz'
   twas:
     files:
     - '{modality}.tar.bz2'

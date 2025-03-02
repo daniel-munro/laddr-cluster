@@ -6,22 +6,10 @@
 phenotype_dir: input/phenotypes
 
 ## Give the path prefix to genotypes in plink1 (bed/bim/fam) format:
-geno_prefix: ../../../pantry/Geuvadis/input/genotype/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.nochr.chr1-22
+geno_prefix: ../../../pantry/GTEx/geno/gtex
 
 ## Samples to include:
 samples_file: input/samples.txt
-
-## Cluster job arguments for snakemake rules using GPU:
-# Your snakemake profile configuration (e.g. ~/.config/snakemake/slurm/config.yaml)
-# should include a `cluster` submission template string that includes
-# `{resources.partition_etc}`. The config should also define `default-resources`
-# that includes the default `partition_etc` string for CPU jobs. Then, define
-# the GPU version of the string here, which will be used in the snakefile for
-# rules that can utilize GPU to override the default `partition_etc`. This can
-# include anything else needed for jobs on your cluster, such as `--account`. If
-# not using cluster jobs, this will be ignored. To run everything on CPU, set
-# this to the same string as the default `partition_etc`.
-gpu_partition_etc: '--account=gpu-gdml-investor --partition=gpu-gdml-investor --gres=gpu:1'
 
 ## Optional parameters
 # Provide a list of SNP IDs to include when computing TWAS weights:
@@ -35,6 +23,7 @@ twas_snps: ../../../pantry/GTEx/geno/LD_SNPs.txt
 # List the modalities to use. The phenotype table ({modality}.bed.gz)
 # must be present in the phenotype_dir, along with a
 # {modality}.phenotype_groups.txt file in the case of grouped phenotypes.
+# 'all' is used to run cross-modality QTL mapping. See Project/scripts/combine_modalities.sh for more details.
 modalities:
   # all:
   #   grouped: true
@@ -61,11 +50,11 @@ analyses:
   # heritability:
   #   files:
   #   - '{modality}.hsq.tsv'
-  # qtl:
-  #   files:
-  #   - '{modality}.cis_qtl.txt.gz'
-  #   - '{modality}.cis_independent_qtl.txt.gz'
-  #   # - '{modality}.trans_qtl.txt.gz'
+  qtl:
+    files:
+    - '{modality}.cis_qtl.txt.gz'
+    - '{modality}.cis_independent_qtl.txt.gz'
+    # - '{modality}.trans_qtl.txt.gz'
   twas:
     files:
     - '{modality}.tar.bz2'

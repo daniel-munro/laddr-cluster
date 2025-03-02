@@ -6,21 +6,18 @@ trait_df = pd.read_csv('input/gwas/gwas_metadata.txt', sep='\t')
 traits = trait_df['Tag'].tolist()
 gwas_n = {traits[i]: n for i, n in enumerate(trait_df['Sample_Size'].tolist())}
 
-chroms = [f'{i + 1}' for i in range(22)]
-tissues = ['Geuvadis']
-modalities = ['latent_full']
+chroms = [f'chr{i + 1}' for i in range(22)]
+gtex5 = pd.read_csv('../data/gtex/tissues.gtex5.txt', header=None, names=['id']).id.tolist()
+tissues = [f'gtex5-full-{t}' for t in gtex5]
 
 localrules:
     sumstats,
 
-wildcard_constraints:
-    modality="[^.]+"
-
 rule all:
     input:
         # expand('input/sumstats/{trait}.sumstats', trait=traits),
-        expand('output/{tissue}/fusion.{tissue}.{modality}.{trait}.tsv', tissue=tissues, modality=modalities, trait=traits),
-        expand('output/twas_hits.{tissue}.{modality}.tsv', tissue=tissues, modality=modalities),
+        expand('output/{tissue}/fusion.{tissue}.{trait}.tsv', tissue=tissues, trait=traits),
+        expand('output/twas_hits.{tissue}.tsv', tissue=tissues),
 
 rule sumstats:
     input:
@@ -40,14 +37,14 @@ rule assoc_test_trait:
     """Run all chromosomes for a trait together"""
     input:
         sumstats = 'input/sumstats/{trait}.sumstats',
-        weights = '../twas_weights/{tissue}/intermediate/twas/{modality}.pos',
-        ref_ld_chr = expand('input/LDREF_b38ids/1000G.EUR.{chrom}.{ext}', chrom=chroms, ext=['bed', 'bim', 'fam']),
+        weights = '../pheast/{tissue}/intermediate/twas/latent_full.pos',
+        ref_ld_chr = expand('input/LDREF_b38ids_chr/1000G.EUR.{chrom}.{ext}', chrom=chroms, ext=['bed', 'bim', 'fam']),
     output:
-        expand('intermediate/{{tissue}}/{{trait}}/{{modality}}.{{trait}}.{chrom}.tsv', chrom=chroms)
+        expand('intermediate/{{tissue}}/{{trait}}/{{trait}}.{chrom}.tsv', chrom=chroms)
     params:
         output_dir = 'intermediate/{tissue}/{trait}',
-        weights_dir = '../twas_weights/{tissue}/intermediate/twas',
-        ref_ld_prefix = 'input/LDREF_b38ids/1000G.EUR.',
+        weights_dir = '../pheast/{tissue}/intermediate/twas',
+        ref_ld_prefix = 'input/LDREF_b38ids_chr/1000G.EUR.',
         chroms = ' '.join(chroms),
         coloc_p = '5e-8', # Hits with p below this are tested for coloc, recommended to be TWAS threshold.
         gwas_n = lambda w: gwas_n[w.trait],
@@ -67,15 +64,15 @@ rule assoc_test_trait:
                 --chr {{}} \
                 --coloc_P {params.coloc_p} \
                 --GWASN {params.gwas_n} \
-                --out {params.output_dir}/{wildcards.modality}.{wildcards.trait}.{{}}.tsv \
+                --out {params.output_dir}/{wildcards.trait}.{{}}.tsv \
             ::: {params.chroms}
         """
 
 rule assemble_assoc_tests:
     input:
-        expand('intermediate/{{tissue}}/{{trait}}/{{modality}}.{{trait}}.{chrom}.tsv', chrom=chroms)
+        expand('intermediate/{{tissue}}/{{trait}}/{{trait}}.{chrom}.tsv', chrom=chroms)
     output:
-        out = 'output/{tissue}/fusion.{tissue}.{modality}.{trait}.tsv'
+        out = 'output/{tissue}/fusion.{tissue}.{trait}.tsv'
     params:
         output_dir = 'output/{tissue}',
     group: 'twas'
@@ -90,9 +87,9 @@ rule assemble_assoc_tests:
 
 rule assemble_hits_all_traits:
     input:
-        fusion = expand('output/{{tissue}}/fusion.{{tissue}}.{{modality}}.{trait}.tsv', trait=traits)
+        fusion = expand('output/{{tissue}}/fusion.{{tissue}}.{trait}.tsv', trait=traits)
     output:
-        out = 'output/twas_hits.{tissue}.{modality}.tsv'
+        out = 'output/twas_hits.{tissue}.tsv'
     params:
         traits = ' '.join(traits),
     shell:
@@ -101,7 +98,7 @@ rule assemble_hits_all_traits:
             | sed 's/^/TRAIT\t/' \
             > {output.out}
         for trait in {params.traits}; do
-            tail -n+2 output/{wildcards.tissue}/fusion.{wildcards.tissue}.{wildcards.modality}.$trait.tsv \
+            tail -n+2 output/{wildcards.tissue}/fusion.{wildcards.tissue}.$trait.tsv \
                 | awk '$18 < 5e-8' \
                 | sed "s/^/$trait\t/" \
                 >> {output.out}
