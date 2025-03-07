@@ -1,6 +1,6 @@
 from pathlib import Path
 
-input_dir = Path('../data/input')
+input_dir = Path('../data/geuvadis')
 pantry_phenos_dir = Path('../../pantry/Geuvadis/output')
 working_dir = Path('.')
 ref_genome = '../../pantry/Geuvadis/input/human_ref/Homo_sapiens.GRCh38.dna.primary_assembly.fa'
@@ -34,7 +34,7 @@ rule all:
 rule assemble_latent_bed:
     """Add gene info to latent phenotypes to generate BED file"""
     input:
-        phenos = working_dir / '{resid}' / 'phenotypes' / 'latent_phenos.Geuvadis.tsv.gz',
+        phenos = working_dir / '..' / 'phenos' / 'geuvadis-{resid}' / 'phenotypes' / 'latent_phenos.Geuvadis.tsv.gz',
         ref_anno = ref_anno,
     output:
         bed = working_dir / 'qtl' / 'latent-{resid}.unnorm.bed',
@@ -45,7 +45,7 @@ rule assemble_latent_bed:
     shell:
         """
         mkdir -p {params.qtl_dir}
-        python3 ~/tools/Pantry/Project/scripts/assemble_bed.py \
+        python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
             --type latent \
             --input {input.phenos} \
             --ref_anno {input.ref_anno} \
@@ -65,7 +65,7 @@ rule normalize_latent:
         mem_mb = 16000,
     shell:
         """
-        python3 ~/tools/Pantry/Project/scripts/normalize_phenotypes.py \
+        python3 ~/tools/Pantry/phenotyping/scripts/normalize_phenotypes.py \
             --input {input.bed} \
             --samples {input.samples} \
             --output {params.bed}
@@ -157,7 +157,7 @@ rule latent_pheno_groups:
         zcat < {input.bed} \
             | tail -n +2 \
             | cut -f4 \
-            | awk '{{ g=$1; sub(/:.*$/, "", g); print $1 "\t" g }}' \
+            | awk '{{ g=$1; sub(/__.*$/, "", g); print $1 "\t" g }}' \
             > {output.groups}
         """
 
@@ -169,7 +169,7 @@ rule combined_pheno_groups:
         groups = working_dir / 'qtl' / 'all-{version}.phenotype_groups.txt',
     shell:
         """
-        zcat {input.bed} | tail -n+2 | cut -f4 | awk -F'[:.]' '{{print $0"\t"$2}}' > {output.groups}
+        zcat {input.bed} | tail -n+2 | cut -f4 | awk -F'[:]' '{{split($2,a,"__"); print $0"\t"a[1]}}' > {output.groups}
         """
 
 rule prune_for_covar:
@@ -179,7 +179,7 @@ rule prune_for_covar:
     input:
         geno = multiext(geno_prefix, '.bed', '.bim', '.fam'),
     output:
-        vcf = working_dir / 'covar' / 'geno_pruned.vcf.gz',
+        geno = multiext(str(working_dir / 'covar' / 'geno_pruned'), '.bed', '.bim', '.fam'),
     params:
         geno_prefix = geno_prefix,
         covar_dir = working_dir / 'covar',
@@ -199,18 +199,19 @@ rule prune_for_covar:
         plink2 \
             --bfile {params.geno_prefix} \
             --extract {params.pruned_prefix}.prune.in \
-            --export vcf bgz id-paste=iid \
+            --make-bed \
             --out {params.pruned_prefix}
         """
 
 rule covariates:
     """Compute genotype and expression PCs and combine."""
     input:
-        vcf = working_dir / 'covar' / 'geno_pruned.vcf.gz',
+        geno = multiext(str(working_dir / 'covar' / 'geno_pruned'), '.bed', '.bim', '.fam'),
         bed = working_dir / 'qtl' / '{phenos}.bed.gz',
     output:
         covar = working_dir / 'covar' / '{phenos}.covar.tsv',
     params:
+        pruned_prefix = working_dir / 'covar' / 'geno_pruned',
         n_geno_pcs = 5,
         n_pheno_pcs = 20,
     resources:
@@ -218,8 +219,8 @@ rule covariates:
     retries: 2
     shell:
         """
-        Rscript ~/tools/Pantry/Pheast/scripts/covariates.R \
-            {input.vcf} \
+        Rscript ~/tools/Pantry/pheast/scripts/covariates.R \
+            {params.pruned_prefix} \
             {input.bed} \
             {params.n_geno_pcs} \
             {params.n_pheno_pcs} \
@@ -245,13 +246,13 @@ rule tensorqtl_perm:
     params:
         geno_prefix = geno_prefix,
     resources:
-        walltime = 12,
+        runtime = '12h',
         mem_mb = lambda w, attempt: 32000 * 2**(attempt-1),
         # Define slurm_partition, slurm_account, and slurm_extra for GPU jobs as needed in the Snakemake profile config.yaml
     retries: 2
     shell:
         """
-        python ~/tools/Pantry/Pheast/scripts/run_tensorqtl.py \
+        python ~/tools/Pantry/pheast/scripts/run_tensorqtl.py \
             {params.geno_prefix} \
             {input.bed} \
             {output.qtl} \
@@ -274,13 +275,13 @@ rule tensorqtl_independent:
     params:
         geno_prefix = geno_prefix,
     resources:
-        walltime = 20,
+        runtime = '20h',
         mem_mb = lambda w, attempt: 32000 * 2**(attempt-1),
         # Define slurm_partition, slurm_account, and slurm_extra for GPU jobs as needed in the Snakemake profile config.yaml
     retries: 2
     shell:
         """
-        python ~/tools/Pantry/Pheast/scripts/run_tensorqtl.py \
+        python ~/tools/Pantry/pheast/scripts/run_tensorqtl.py \
             {params.geno_prefix} \
             {input.bed} \
             {output.qtl} \
