@@ -1,3 +1,4 @@
+.snakemake
 data
 old
 compare/trial*/*/*
@@ -19,6 +20,10 @@ held_out/*/*
 held_out/*/*/*
 !held_out/no_*/config.yaml
 !held_out/no_*/Snakefile
+prune_anno/latent-*/*
+!prune_anno/latent-*/config.yaml
+!prune_anno/latent-*/coverage_manifest.tsv
+!prune_anno/latent-*/Snakefile
 recount3/bigwig
 recount3/brain-blood/*
 !recount3/brain-blood/config.yaml
