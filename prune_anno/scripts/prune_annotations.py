@@ -1,9 +1,9 @@
-"""Successively prune a proportion of the isoforms in a gtf file.
+"""Successively prune a proportion of the non-canonical isoforms in a gtf file.
 
-For example, remove a random 20% of the isoforms (and remove any genes with no
-remaining isoforms). Then remove another random 20% (of the original amount),
-and so on. These will be used to run Pantry and latent-rna, and the results will
-demonstrate the effect of isoform sparsity on the results of each method.
+For example, remove a random 20% of the non-canonical isoforms. Then remove
+another random 20% (of the original amount), and so on. These will be used to
+run Pantry and latent-rna, and the results will demonstrate the effect of
+isoform sparsity on the results of each method.
 """
 
 import argparse
@@ -18,65 +18,64 @@ import polars as pl
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gtf', type=str, required=True, help='Path to the gtf file')
+    parser.add_argument('--canonical', type=str, required=True, help='Path to the canonical transcript file')
     parser.add_argument('--output_prefix', type=str, required=True, help='Prefix for the output gtf files')
-    parser.add_argument('--remove_percent', type=int, required=True, help='Percentage (out of 100) of original isoforms to remove at each step')
-    parser.add_argument('--steps', type=int, default=3, help='Number of pruning steps to perform')
+    parser.add_argument('--remove_percent', type=int, required=True, help='Percentage (out of 100) of original non-canonical isoforms to remove at each step')
+    parser.add_argument('--steps', type=int, default=3, help='Number of pruning steps to perform. 100 - remove_percent * steps should be 0 or greater.')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
     args = parser.parse_args()
 
-    # Set random seed for reproducibility
     random.seed(args.seed)
     np.random.seed(args.seed)
 
     gtf = gtfparse.read_gtf(args.gtf)
-    
+    canonical_df = pl.read_csv(args.canonical, separator='\t', has_header=False)
+    canonical_ids = set(tx.split('.')[0] for tx in canonical_df.get_column('column_5'))
+
     transcripts = gtf.filter(pl.col('feature') == 'transcript')
+    transcripts = transcripts.with_columns(
+        pl.col('transcript_id').str.split('.').list.first().is_in(canonical_ids).alias('canonical')
+    )
     
-    gene_to_transcripts = defaultdict(list)
-    for row in transcripts.iter_rows(named=True):
-        gene_to_transcripts[row['gene_id']].append(row['transcript_id'])
+    n_canonical_per_gene = transcripts.group_by('gene_id').agg(
+        pl.col('canonical').sum().alias('n_canonical')
+    )
+    assert (n_canonical_per_gene.get_column('n_canonical') == 1).all(), \
+        "Some genes do not have exactly one canonical transcript"
     
-    all_transcript_ids = transcripts['transcript_id'].to_list()
+    noncanonical = transcripts.filter(pl.col('canonical').not_())
+    noncanonical_ids = noncanonical.get_column('transcript_id').to_list()
+    random.shuffle(noncanonical_ids)
     
-    total_transcripts = len(all_transcript_ids)
-    n_remove_per_step = int(total_transcripts * args.remove_percent / 100)
-    
-    remaining_transcript_ids = set(all_transcript_ids)
+    n_remove_per_step = int(len(noncanonical_ids) * args.remove_percent / 100)
+    to_remove = set()
     
     for step in range(args.steps):
-        transcripts_to_remove = random.sample(list(remaining_transcript_ids), n_remove_per_step)
-        remaining_transcript_ids = remaining_transcript_ids - set(transcripts_to_remove)
-        
-        # Find genes that still have at least one transcript
-        remaining_genes = set()
-        for gene, gene_transcripts in gene_to_transcripts.items():
-            if any(tid in remaining_transcript_ids for tid in gene_transcripts):
-                remaining_genes.add(gene)
+        percent_remaining = 100 - (step + 1) * args.remove_percent
+        # If 0% should remain, remove all rather than leaving a few due to rounding
+        if args.remove_percent == 0:
+            to_remove.update(noncanonical_ids)
+            noncanonical_ids = []
+        else:
+            to_remove.update(noncanonical_ids[:n_remove_per_step])
+            noncanonical_ids = noncanonical_ids[n_remove_per_step:]
         
         # Save the pruned GTF file (filter original lines to avoid having to convert back to GTF format)
-        percent_remaining = 100 - (step + 1) * args.remove_percent
         output_file = f"{args.output_prefix}.pruned_{percent_remaining}.gtf"
-        # gtf_formatted.write_csv(output_file, separator='\t', include_header=False)
         open_fn = gzip.open if args.gtf.endswith('.gz') else open
         mode = 'rt' if args.gtf.endswith('.gz') else 'r'
         with open_fn(args.gtf, mode) as f:
             with open(output_file, 'w') as out:
                 for line in f:
-                    gene_id = None
-                    match = re.search(r'gene_id "([^"]+)"', line)
-                    if match:
-                        gene_id = match.group(1)
                     transcript_id = None
                     match = re.search(r'transcript_id "([^"]+)"', line)
                     if match:
                         transcript_id = match.group(1)
-                    if gene_id is None or gene_id in remaining_genes:
-                        if transcript_id is None or transcript_id in remaining_transcript_ids:
-                            out.write(line)
+                    if transcript_id is None or transcript_id not in to_remove:
+                        out.write(line)
         
-        print(f"Step {step+1}: Removed {n_remove_per_step} transcripts ({len(remaining_transcript_ids)} remaining, {percent_remaining}% of original)")
-        print(f"  - {len(remaining_genes)} genes with at least one transcript")
-        print(f"  - Output saved to {output_file}")
+        print(f"Step {step+1}: Removed {n_remove_per_step} transcripts ({len(noncanonical_ids)} remaining, {percent_remaining}% of original)", flush=True)
+        print(f"  - Output saved to {output_file}", flush=True)
 
 if __name__ == "__main__":
     main()

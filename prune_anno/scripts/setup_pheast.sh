@@ -1,99 +1,58 @@
 set -e
 
-# prune is e.g. 40, 60, 80
-prune=$1
-gtf=../../ref/human/gencode.v47.annotation.gtf.gz
 tissue=BRNCTXB
+projdir=qtl
 
-mkdir -p pheast
+rsync -av ~/tools/Pantry/pheast/ $projdir --exclude input --exclude intermediate --exclude output --exclude .snakemake
+cp ../pheast/scripts/qtl.smk $projdir/steps/
+cp scripts/config_pheast.yml $projdir/config.yml
+mkdir -p $projdir/input/phenotypes_original/unnorm
 
 ############
 ## Latent ##
 ############
 
-projdir="pheast/latent-${prune}"
+gtf=../../ref/human/gencode.v47.annotation.gtf.gz
 
-# Confirm projdir does not already exist
-if [ -d "$projdir" ]; then
-    echo "Error: $projdir already exists"
-    exit 1
-fi
-rsync -av ~/tools/Pantry/pheast/ $projdir --exclude input --exclude intermediate --exclude output
-cp ../pheast/scripts/qtl.smk $projdir/steps/
-cp scripts/config_latent.yml $projdir/config.yml
+for prune in 0 40 100; do
+    echo "Processing latent-${prune}"
 
-# (Remove example data, edit config)
-rm -rf $projdir/.snakemake
+    python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
+        --type latent \
+        --input latent-${prune}/phenotypes/latent_phenos.${tissue}.tsv.gz \
+        --ref_anno $gtf \
+        --output $projdir/input/phenotypes_original/unnorm/latent-${prune}.unnorm.bed
 
-echo "Processing latent-${prune}"
+    python3 ~/tools/Pantry/phenotyping/scripts/normalize_phenotypes.py \
+        --input $projdir/input/phenotypes_original/unnorm/latent-${prune}.unnorm.bed \
+        --output $projdir/input/phenotypes_original/latent-${prune}.bed
+    bgzip $projdir/input/phenotypes_original/unnorm/latent-${prune}.unnorm.bed
+    bgzip $projdir/input/phenotypes_original/latent-${prune}.bed
 
-mkdir -p $projdir/input/phenotypes_original
-
-python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
-    --type latent \
-    --input latent-${prune}/phenotypes/latent_phenos.${tissue}.tsv.gz \
-    --ref_anno $gtf \
-    --output $projdir/input/phenotypes_original/latent_full.unnorm.bed
-
-python3 ~/tools/Pantry/phenotyping/scripts/normalize_phenotypes.py \
-    --input $projdir/input/phenotypes_original/latent_full.unnorm.bed \
-    --output $projdir/input/phenotypes_original/latent_full.bed
-bgzip $projdir/input/phenotypes_original/latent_full.bed
-
-# Convert to individual IDs and filter samples
-python3 ~/tools/Pantry/pheast/scripts/prepare_phenotypes.py \
-    --indir $projdir/input/phenotypes_original \
-    --out $projdir/input/phenotypes \
-    --map ../data/gtex/sample_individual_map.tsv \
-    --individuals ../../pantry/GTEx/geno/ids.txt
-
-tabix -p bed $projdir/input/phenotypes/latent_full.bed.gz
-
-## Get latent phenotype groups
-zcat $projdir/input/phenotypes/latent_full.bed.gz \
-    | tail -n +2 \
-    | cut -f4 \
-    | awk '{{ g=$1; sub(/__.*$/, "", g); print $1 "\t" g }}' \
-    > $projdir/input/phenotypes/latent_full.phenotype_groups.txt
-
-## Get samples with genotypes
-zcat $projdir/input/phenotypes/latent_full.bed.gz \
-    | head -n1 \
-    | cut -f5- \
-    | sed 's/\t/\n/g' \
-    > $projdir/input/samples.txt
-
-# (Run Pheast using Snakemake)
+    ## Get latent phenotype groups
+    zcat $projdir/input/phenotypes_original/latent-${prune}.bed.gz \
+        | tail -n +2 \
+        | cut -f4 \
+        | awk '{{ g=$1; sub(/__.*$/, "", g); print $1 "\t" g }}' \
+        > $projdir/input/phenotypes_original/latent-${prune}.phenotype_groups.txt
+done
 
 ############
 ## Pantry ##
 ############
 
-projdir="pheast/pantry-${prune}"
+for prune in 0 20 40 60 80 100; do
+    echo "Processing pantry-${prune}"
 
-# Confirm projdir does not already exist
-if [ -d "$projdir" ]; then
-    echo "Error: $projdir already exists"
-    exit 1
-fi
-rsync -av ~/tools/Pantry/pheast/ $projdir --exclude input --exclude intermediate --exclude output
-cp ../pheast/scripts/qtl.smk $projdir/steps/
-cp scripts/config_pantry.yml $projdir/config.yml
+    cd pantry-${prune}
+    bash scripts/combine_modalities.sh alt_polyA alt_TSS expression isoforms splicing stability
+    cd ..
 
-# (Remove example data, edit config)
-rm -rf $projdir/.snakemake
-
-echo "Processing pantry-${prune}"
-
-cd pantry-${prune}
-bash scripts/combine_modalities.sh alt_polyA alt_TSS expression isoforms splicing stability
-cd ..
-
-mkdir -p $projdir/input/phenotypes_original
-(zcat pantry-${prune}/output/cross_modality.bed.gz | head -n1; \
-    zcat pantry-${prune}/output/cross_modality.bed.gz | tail -n+2 | sed 's/^/chr/') \
-    | bgzip > $projdir/input/phenotypes_original/cross_modality.bed.gz
-cp pantry-${prune}/output/cross_modality.phenotype_groups.txt $projdir/input/phenotypes_original/
+    (zcat pantry-${prune}/output/cross_modality.bed.gz | head -n1; \
+        zcat pantry-${prune}/output/cross_modality.bed.gz | tail -n+2 | sed 's/^/chr/') \
+        | bgzip > $projdir/input/phenotypes_original/pantry-${prune}.bed.gz
+    cp pantry-${prune}/output/cross_modality.phenotype_groups.txt $projdir/input/phenotypes_original/pantry-${prune}.phenotype_groups.txt
+done
 
 # Convert to individual IDs and filter samples
 python3 ~/tools/Pantry/pheast/scripts/prepare_phenotypes.py \
@@ -102,15 +61,16 @@ python3 ~/tools/Pantry/pheast/scripts/prepare_phenotypes.py \
     --map ../data/gtex/sample_individual_map.tsv \
     --individuals ../../pantry/GTEx/geno/ids.txt
 
-rm -r $projdir/input/phenotypes_original
-
-tabix -p bed $projdir/input/phenotypes/cross_modality.bed.gz
+for type in latent; do # pantry; do
+    for prune in 0 40 100; do
+        tabix -p bed $projdir/input/phenotypes/${type}-${prune}.bed.gz
+    done
+done
 
 ## Get samples with genotypes
-zcat $projdir/input/phenotypes/cross_modality.bed.gz \
+zcat $projdir/input/phenotypes/latent-0.bed.gz \
     | head -n1 \
     | cut -f5- \
     | sed 's/\t/\n/g' \
     > $projdir/input/samples.txt
 
-# (Run Pheast using Snakemake)

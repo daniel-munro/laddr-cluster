@@ -12,6 +12,11 @@ with open(BATCH_FILE, 'r') as f:
 
 assert config['input']['coverage']['method'] == 'manifest'
 sample_table = pd.read_csv(config['input']['coverage']['manifest'], sep='\t', names=['dataset', 'sample', 'path'])
+if 'directory' in config['input']['coverage']:
+    # Prepend coverage directory to paths if specified
+    covg_dir = Path(config['input']['coverage']['directory'])
+    sample_table['path'] = sample_table['path'].apply(lambda p: str(covg_dir / p))
+
 datasets = sample_table['dataset'].unique().tolist()
 
 rule all:
@@ -85,8 +90,8 @@ rule latent_rna_transform:
 rule latent_rna_inspect:
     """Extract model data for visualization"""
     input:
-        bw = sample_table['path'].tolist(),
         genes = working_dir / 'info' / 'genes.tsv',
+        covg_norm = expand(str(working_dir / 'covg_norm' / '{{dataset}}' / 'batch_{batch}.npy'), batch=range(N_BATCHES)),
         covg_norm_bins = expand(str(working_dir / 'covg_norm' / '{{dataset}}' / 'batch_{batch}.bins.tsv.gz'), batch=range(N_BATCHES)),
         models = expand(str(working_dir / 'models' / 'models_batch_{batch}.pickle'), batch=range(N_BATCHES)),
         phenos = working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz',

@@ -9,14 +9,12 @@ fastq_map: ../data/fastq_map.txt
 
 ## Reference files
 # Download and unzip genome, e.g. http://ftp.ensembl.org/pub/release-106/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
-ref_genome: ../../../ref/human-ensembl/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+ref_genome: ../../../ref/human/GRCh38_no_alt_analysis_set_GCA_000001405.15.fasta
 # Download and unzip gene annotations, e.g. http://ftp.ensembl.org/pub/release-106/gtf/homo_sapiens/Homo_sapiens.GRCh38.106.gtf.gz
 ref_anno: ../data/Homo_sapiens.GRCh38.113.chr.pruned_80.gtf
 
 ## Samples to include:
 samples_file: ../data/samples.txt
-## Approximate size of the genome in bp, e.g. 3e9 for full human genome
-genome_size: 3e9
 
 ## Optional parameters
 # Path to intermediate file directory, in case you don't want it inside this project directory due to its size:

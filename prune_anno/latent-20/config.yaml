@@ -3,7 +3,7 @@
 # Input files
 input:
   # GTF annotation file path
-  gtf: ../data/Homo_sapiens.GRCh38.113.chr.pruned_80.gtf
+  gtf: ../data/Homo_sapiens.GRCh38.113.chr.pruned_20.gtf
 
   # How to specify datasets and samples and locate bigWig coverage files
   coverage:
