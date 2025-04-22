@@ -2,6 +2,7 @@ set -e
 
 tissue=BRNCTXB
 projdir=qtl
+gtf=data/Homo_sapiens.GRCh38.113.chr.pruned_100.gtf
 
 rsync -av ~/tools/Pantry/pheast/ $projdir --exclude input --exclude intermediate --exclude output --exclude .snakemake
 cp ../pheast/scripts/qtl.smk $projdir/steps/
@@ -11,8 +12,6 @@ mkdir -p $projdir/input/phenotypes_original/unnorm
 ############
 ## Latent ##
 ############
-
-gtf=../../ref/human/gencode.v47.annotation.gtf.gz
 
 for prune in 0 40 100; do
     echo "Processing latent-${prune}"
@@ -41,16 +40,14 @@ done
 ## Pantry ##
 ############
 
-for prune in 0 20 40 60 80 100; do
+for prune in 40 100; do
     echo "Processing pantry-${prune}"
 
     cd pantry-${prune}
     bash scripts/combine_modalities.sh alt_polyA alt_TSS expression isoforms splicing stability
     cd ..
 
-    (zcat pantry-${prune}/output/cross_modality.bed.gz | head -n1; \
-        zcat pantry-${prune}/output/cross_modality.bed.gz | tail -n+2 | sed 's/^/chr/') \
-        | bgzip > $projdir/input/phenotypes_original/pantry-${prune}.bed.gz
+    cp pantry-${prune}/output/cross_modality.bed.gz $projdir/input/phenotypes_original/pantry-${prune}.bed.gz
     cp pantry-${prune}/output/cross_modality.phenotype_groups.txt $projdir/input/phenotypes_original/pantry-${prune}.phenotype_groups.txt
 done
 

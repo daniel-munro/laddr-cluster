@@ -32,21 +32,21 @@ samples_file: ../data/samples.txt
 # Each group represents one or more modalities that are generated from the same
 # software.
 modality_groups:
-  alt_TSS_polyA:
-    files:
-    - alt_TSS.bed.gz
-    - alt_TSS.bed.gz.tbi
-    - alt_TSS.phenotype_groups.txt
-    - alt_polyA.bed.gz
-    - alt_polyA.bed.gz.tbi
-    - alt_polyA.phenotype_groups.txt
+  # alt_TSS_polyA:
+  #   files:
+  #   - alt_TSS.bed.gz
+  #   - alt_TSS.bed.gz.tbi
+  #   - alt_TSS.phenotype_groups.txt
+  #   - alt_polyA.bed.gz
+  #   - alt_polyA.bed.gz.tbi
+  #   - alt_polyA.phenotype_groups.txt
   expression:
     files:
     - expression.bed.gz
     - expression.bed.gz.tbi
-    - isoforms.bed.gz
-    - isoforms.bed.gz.tbi
-    - isoforms.phenotype_groups.txt
+    # - isoforms.bed.gz
+    # - isoforms.bed.gz.tbi
+    # - isoforms.phenotype_groups.txt
   splicing:
     files:
     - splicing.bed.gz

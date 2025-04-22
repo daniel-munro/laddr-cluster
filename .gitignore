@@ -27,7 +27,8 @@ prune_anno/latent-*/*
 !prune_anno/latent-*/Snakefile
 prune_anno/pantry-*/*
 !prune_anno/pantry-*/config.yml
-prune_anno/pheast
+prune_anno/qtl/*
+!prune_anno/qtl/config.yml
 recount3/bigwig
 recount3/brain-blood/*
 !recount3/brain-blood/config.yaml
