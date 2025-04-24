@@ -7,7 +7,6 @@ def parse_args():
     parser.add_argument("-i", type=Path, required=True, help="Input TSV with sample, dataset, url columns")
     parser.add_argument("-s", type=Path, help="File with sample IDs to filter to (optional)")
     parser.add_argument("--collection", choices=['gtex', 'tcga'], help="Either 'gtex' or 'tcga', used to determine how to filter bigWigs")
-    parser.add_argument("-d", type=Path, required=True, help="Path to bigWig directory relative to output file. BigWig paths will be written as {bigwig_dir}/{dataset}/{file_name}")
     parser.add_argument("-o", type=Path, required=True, help="Output manifest file")
     return parser.parse_args()
 
@@ -34,10 +33,7 @@ def main():
         df = df.groupby('sample').first().reset_index()
         df = df.sort_values(['dataset', 'sample'])
     # Construct the bigwig paths
-    df['bigwig_path'] = df.apply(
-        lambda x: args.d / x.dataset / x.file_name,
-        axis=1
-    )
+    df['bigwig_path'] = df.apply(lambda x: Path(x.dataset) / x.file_name, axis=1)
     
     manifest = df[['dataset', 'sample', 'bigwig_path']]
     manifest.to_csv(args.o, sep='\t', index=False, header=False)

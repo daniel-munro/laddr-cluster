@@ -87,5 +87,6 @@ if [ "$mode" = "residual" ]; then
         --individuals ../../pantry/GTEx/geno/ids.txt
     mv -i ${projdir}/input/phenotypes2/* ${projdir}/input/phenotypes/
     rmdir ${projdir}/input/phenotypes2
+    mv -i ${projdir}/input/output/cross_modality.bed.gz ${projdir}/input/phenotypes_original/
     rm -r ${projdir}/input/output
 fi

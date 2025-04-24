@@ -4,10 +4,23 @@ import sys
 import pandas as pd
 import gzip
 from pathlib import Path
+from gtfparse import read_gtf
 
 def parse_gene_id(phenotype_id):
     """Extract gene ID from phenotype ID format '{gene_id}__{etc}'."""
     return phenotype_id.split('__')[0]
+
+def tss_info_from_gtf(gtf_file):
+    """Parse GTF file to extract gene information and calculate TSS coordinates."""
+    gtf_df = read_gtf(gtf_file, result_type='pandas')
+    gene_df = gtf_df[gtf_df['feature'] == 'gene'].copy()
+    tss_info = {}
+    for _, row in gene_df.iterrows():
+        gene_id = row['gene_id']
+        strand = row['strand']
+        tss = int(row['start']) if strand == '+' else int(row['end'])
+        tss_info[gene_id] = tss
+    return tss_info
 
 def update_bed_file(input_file, output_file, tss_info):
     """Update phenotype IDs and TSS coordinates in a BED file."""
@@ -26,17 +39,13 @@ def update_bed_file(input_file, output_file, tss_info):
             phenotype_id = phenotype_id.replace('.', '__', 1)
         elif ':' in phenotype_id:
             phenotype_id = phenotype_id.replace(':', '__', 1)
+
         # Update TSS coordinates if gene is in tss_info
         gene_id = parse_gene_id(phenotype_id)
-        if gene_id in tss_info.index:
-            tss = tss_info.loc[gene_id, 'tss']
-            strand = tss_info.loc[gene_id, 'strand']
-            if strand == '+':
-                fields[1] = str(tss)  # tss gives coordinate before TSS base
-                fields[2] = str(tss + 1)
-            else:  # strand == '-'
-                fields[1] = str(tss - 1)  # tss gives coordinate after TSS base
-                fields[2] = str(tss)
+        if gene_id in tss_info:
+            tss = tss_info[gene_id]
+            fields[1] = str(tss - 1)  # convert to 0-based coordinates
+            fields[2] = str(tss)
         
         fields[3] = phenotype_id
         updated_lines.append('\t'.join(fields) + '\n')
@@ -46,16 +55,18 @@ def update_bed_file(input_file, output_file, tss_info):
 
 def main():
     if len(sys.argv) != 4:
-        print("Usage: python update_pantry_beds.py <input_dir> <tss_info.tsv> <output_dir>")
+        print("Usage: python update_pantry_beds.py <input_dir> <gtf_file> <output_dir>")
         sys.exit(1)
     
     input_dir = Path(sys.argv[1])
-    tss_info_file = Path(sys.argv[2])
+    gtf_file = Path(sys.argv[2])
     output_dir = Path(sys.argv[3])
     
     output_dir.mkdir(exist_ok=False)
     
-    tss_info = pd.read_csv(tss_info_file, sep='\t', index_col='gene_id')
+    print(f"Parsing GTF file {gtf_file}...")
+    tss_info = tss_info_from_gtf(gtf_file)
+    print(f"Found {len(tss_info)} genes in GTF file")
     
     # Process each BED file
     modalities = ['alt_polyA', 'alt_TSS', 'expression', 'isoforms', 'splicing', 'stability']

@@ -8,17 +8,16 @@ for tissue in $(zcat ../data/gtex/bigwigs.tsv.gz | tail -n +2 | cut -f 2 | sort 
     echo "Downloading bigwig files for $tissue"
     mkdir -p "../data/gtex/bigwig/$tissue"
     for url in $(zcat ../data/gtex/bigwigs.tsv.gz | tail -n +2 | awk -v t="$tissue" '$2 == t {print $3}'); do
-        wget -P "../data/gtex/bigwig/$tissue" $url
+        wget --no-verbose -P "../data/gtex/bigwig/$tissue" $url
     done
 done
 
 mkdir -p ../data/tcga/bigwig
-# for study in $(zcat ../data/tcga/bigwigs.tsv.gz | tail -n +2 | cut -f 2 | sort | uniq); do
-for study in $(cat ../data/tcga/studies.tcga5.txt); do
+for study in $(zcat ../data/tcga/bigwigs.tsv.gz | tail -n +2 | cut -f 2 | sort | uniq); do
     echo "Downloading bigwig files for $study"
     mkdir -p "../data/tcga/bigwig/$study"
     for url in $(zcat ../data/tcga/bigwigs.tsv.gz | tail -n +2 | awk -v s="$study" '$2 == s {print $3}'); do
-        wget -P "../data/tcga/bigwig/$study" $url
+        wget --no-verbose -P "../data/tcga/bigwig/$study" $url
     done
 done
 
@@ -32,15 +31,14 @@ latent-rna init tcga-full --template snakemake
 python scripts/create_coverage_manifest.py \
     -i ../data/gtex/bigwigs.tsv.gz \
     -s <(cut -f1 ../../pantry/GTEx/samples_tissues.txt) \
-    --filter-gtex \
-    -d ../../data/gtex/bigwig \
+    --collection gtex \
     -o gtex-full/coverage_manifest.tsv
 # Filter gtex-full/coverage_manifest.tsv to get gtex5-full/coverage_manifest.tsv
 awk 'NR==FNR {tissues[$1]=1; next} $1 in tissues' ../data/gtex/tissues.gtex5.txt gtex-full/coverage_manifest.tsv > gtex5-full/coverage_manifest.tsv
 
 python scripts/create_coverage_manifest.py \
     -i ../data/tcga/bigwigs.tsv.gz \
-    -d ../../data/tcga/bigwig \
+    --collection tcga \
     -o tcga-full/coverage_manifest.tsv
 # Filter tcga-full/coverage_manifest.tsv to get tcga5-full/coverage_manifest.tsv
 awk 'NR==FNR {studies[$1]=1; next} $1 in studies' ../data/tcga/studies.tcga5.txt tcga-full/coverage_manifest.tsv > tcga5-full/coverage_manifest.tsv
@@ -53,3 +51,16 @@ cd tcga5-full && latent-rna setup && cd ..
 cd tcga-full && latent-rna setup && cd ..
 
 # (Run phenotyping using Snakemake)
+
+#############
+# Geuvadis ##
+#############
+
+# Generate bigWig files from BAM files
+threads=16
+mkdir -p ../data/geuvadis/bigwig
+for sample in $(cat todo.txt); do
+    echo "Generating bigWig file for $sample"
+    bamCoverage -b ../data/geuvadis/align/intermediate/star_out/$sample.Aligned.sortedByCoord.out.bam -o ../data/geuvadis/bigwig/$sample.bw -of bigwig --binSize 1 -p $threads
+done
+
