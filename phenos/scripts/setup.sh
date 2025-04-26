@@ -26,6 +26,7 @@ latent-rna init gtex5-full --template snakemake
 latent-rna init gtex-full --template snakemake
 latent-rna init tcga5-full --template snakemake
 latent-rna init tcga-full --template snakemake
+latent-rna init gtextcga-full --template snakemake
 
 # Create coverage manifest files
 python scripts/create_coverage_manifest.py \
@@ -42,6 +43,10 @@ python scripts/create_coverage_manifest.py \
     -o tcga-full/coverage_manifest.tsv
 # Filter tcga-full/coverage_manifest.tsv to get tcga5-full/coverage_manifest.tsv
 awk 'NR==FNR {studies[$1]=1; next} $1 in studies' ../data/tcga/studies.tcga5.txt tcga-full/coverage_manifest.tsv > tcga5-full/coverage_manifest.tsv
+
+# Combine GTEx and TCGA manifests with appropriate prefixes
+awk 'BEGIN {OFS="\t"} {print $1, $2, "gtex/bigwig/" $3}' gtex-full/coverage_manifest.tsv > gtextcga-full/coverage_manifest.tsv
+awk 'BEGIN {OFS="\t"} {print $1, $2, "tcga/bigwig/" $3}' tcga-full/coverage_manifest.tsv >> gtextcga-full/coverage_manifest.tsv
 
 # (Edit configs)
 
@@ -63,4 +68,8 @@ for sample in $(cat todo.txt); do
     echo "Generating bigWig file for $sample"
     bamCoverage -b ../data/geuvadis/align/intermediate/star_out/$sample.Aligned.sortedByCoord.out.bam -o ../data/geuvadis/bigwig/$sample.bw -of bigwig --binSize 1 -p $threads
 done
+
+latent-rna init geuvadis-full --template snakemake
+
+cat ../data/geuvadis/samples.txt | awk '{ print "Geuvadis\t" $1 "\t" $1 ".bw" }' > geuvadis-full/coverage_manifest.tsv
 

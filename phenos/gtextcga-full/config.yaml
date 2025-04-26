@@ -12,7 +12,7 @@ input:
     # Path to directory containing bigWig files
     # If method is "directory", the datasets and samples will be determined by interpreting this directory's contents as {dataset}/{sample}.bw
     # If method is "manifest", the paths in the manifest file should be relative to this directory.
-    directory: ../../data/geuvadis/bigwig
+    directory: ../../data
     # If method is "manifest", path to a headerless tab-delimited manifest file with three columns:
     # dataset, sample, path to bigWig file.
     manifest: coverage_manifest.tsv
@@ -25,18 +25,14 @@ input:
   # ('dataset' surrounded by curly braces) in the paths to point to
   # dataset-specific files. Otherwise, if processing multiple datasets, all
   # samples must be present in each phenotype file.
-  pheno_paths:
-    - ../../data/geuvadis/pantry/output/alt_polyA.bed.gz
-    - ../../data/geuvadis/pantry/output/alt_TSS.bed.gz
-    - ../../data/geuvadis/pantry/output/expression.bed.gz
-    - ../../data/geuvadis/pantry/output/isoforms.bed.gz
-    - ../../data/geuvadis/pantry/output/splicing.bed.gz
-    - ../../data/geuvadis/pantry/output/stability.bed.gz
+  # pheno_paths:
+  #   - path/to/modality1.bed.gz
+  #   - path/to/modality2.bed.gz
 
 # Binning parameters
 binning:
   # Number of genes (at most) per batch
-  batch_size: 100
+  batch_size: 40
   # Maximum width of any bin
   max_bin_width: 1024
   # Parameters for adaptive binning

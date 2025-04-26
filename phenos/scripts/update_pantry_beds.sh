@@ -2,9 +2,9 @@ set -e
 
 # mkdir data/gtex/pantry_phenos
 
-for tissue in $(cat todo.txt); do
+for tissue in $(cat data/gtex/tissues.all54.txt); do
     echo $tissue
-	python pheast/scripts/update_pantry_beds.py \
+	python phenos/scripts/update_pantry_beds.py \
 	    ../pantry/GTEx/phenos/$tissue/output/ \
 	    ../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf \
 	    data/gtex/pantry_phenos/$tissue
