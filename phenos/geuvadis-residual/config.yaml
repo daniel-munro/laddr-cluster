@@ -36,7 +36,7 @@ input:
 # Binning parameters
 binning:
   # Number of genes (at most) per batch
-  batch_size: 100
+  batch_size: 40
   # Maximum width of any bin
   max_bin_width: 1024
   # Parameters for adaptive binning
