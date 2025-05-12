@@ -1,0 +1,253 @@
+"""Process latent phenotyping output and set up for Pheast"""
+
+# Use GTF without gene ID versions
+ref_anno = '../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf'
+modalities = ['alt_polyA', 'alt_TSS', 'expression', 'isoforms', 'splicing', 'stability']
+
+tissues = {'geuvadis': 'Geuvadis'}
+with open('../data/gtex/tissues.gtex5.txt') as f:
+    tissues['gtex5'] = f.read().splitlines()
+with open('../data/gtex/tissues.gtex.txt') as f:
+    tissues['gtex'] = f.read().splitlines()
+    tissues['gtex'] = tissues['gtex5'] # For testing
+
+localrules:
+    latent_pheno_groups,
+    prepare_phenotypes_geuvadis,
+    index_bed,
+
+rule all:
+    input:
+        expand('geuvadis-{mode}/input/phenotypes/Geuvadis-latent.bed.gz.tbi', mode=['full', 'residual']),
+        expand('geuvadis-{mode}/input/phenotypes/Geuvadis-latent.phenotype_groups.txt', mode=['full', 'residual']),
+        expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_latent.bed.gz.tbi'),
+        expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_latent.phenotype_groups.txt', mode=['residual']),
+        expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_pantry.bed.gz.tbi'),
+        expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_pantry.phenotype_groups.txt', mode=['residual']),
+        # expand('gtex5-{mode}/input/phenotypes/{tissue}-latent.bed.gz.tbi', mode=['full', 'residual'], tissue=tissues['gtex5']),
+        # expand('gtex5-residual/input/phenotypes/{tissue}-cross_latent.bed.gz.tbi', tissue=tissues['gtex5']),
+        expand('gtex-residual/input/phenotypes/{tissue}-latent.bed.gz.tbi', tissue=tissues['gtex']),
+        expand('gtex-residual/input/phenotypes/{tissue}-latent.phenotype_groups.txt', tissue=tissues['gtex']),
+        expand('gtex-residual/input/phenotypes/{tissue}-cross_latent.bed.gz.tbi', tissue=tissues['gtex']),
+        expand('gtex-residual/input/phenotypes/{tissue}-cross_latent.phenotype_groups.txt', tissue=tissues['gtex']),
+        expand('gtextcga-full/input/phenotypes/{tissue}-latent.bed.gz.tbi', tissue=tissues['gtex']),
+        expand('gtextcga-full/input/phenotypes/{tissue}-latent.phenotype_groups.txt', tissue=tissues['gtex']),
+
+rule assemble_latent_bed:
+    """Add gene info to latent phenotypes to generate BED file"""
+    input:
+        phenos = '../phenos/{group}-{mode}/phenotypes/latent_phenos.{tissue}.tsv.gz',
+        ref_anno = ref_anno,
+    output:
+        bed = '{group}-{mode}/input/phenotypes_original/unnorm/{tissue}-latent.unnorm.bed',
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
+            --type latent \
+            --input {input.phenos} \
+            --ref_anno {input.ref_anno} \
+            --output {output.bed}
+        """
+
+rule normalize_latent:
+    """Quantile-normalize values for QTL mapping"""
+    input:
+        bed = '{group}-{mode}/input/phenotypes_original/unnorm/{tissue}-latent.unnorm.bed',
+    output:
+        bed = '{group}-{mode}/input/phenotypes_original/{tissue}-latent.bed.gz',
+    params:
+        bed = '{group}-{mode}/input/phenotypes_original/{tissue}-latent.bed',
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        python3 ~/tools/Pantry/phenotyping/scripts/normalize_phenotypes.py \
+            --input {input.bed} \
+            --output {params.bed}
+        bgzip {params.bed}
+        """
+
+rule latent_pheno_groups:
+    """Group latent phenotypes by gene"""
+    input:
+        bed = '{group}-{mode}/input/phenotypes_original/{tissue}-latent.bed.gz',
+    output:
+        groups = '{group}-{mode}/input/phenotypes_original/{tissue}-latent.phenotype_groups.txt',
+    shell:
+        """
+        zcat {input.bed} \
+            | tail -n +2 \
+            | cut -f4 \
+            | awk '{{ g=$1; sub(/__.*$/, "", g); print $1 "\t" g }}' \
+            > {output.groups}
+        """
+
+rule combine_modalities_gtex:
+    """Combine latent and Pantry phenotypes"""
+    input:
+        latent_bed = '{group}-residual/input/phenotypes_original/{tissue}-latent.bed.gz',
+        pantry_beds = expand('../data/gtex/pantry_phenos/{{tissue}}/{modality}.bed.gz', modality = modalities),
+    output:
+        bed = '{group,gtex.*}-residual/input/phenotypes_original/{tissue}-cross_latent.bed.gz',
+        groups = '{group,gtex.*}-residual/input/phenotypes_original/{tissue}-cross_latent.phenotype_groups.txt',
+    params:
+        tmp_dir = '{group}-residual/input/phenotypes_original/tmp_{tissue}',
+        modalities = modalities,
+    shell:
+        """
+        set -e
+        mkdir {params.tmp_dir}
+        mkdir {params.tmp_dir}/output
+        ln -s ../../{wildcards.tissue}-latent.bed.gz {params.tmp_dir}/output/latent_residual.bed.gz
+        for modality in {params.modalities}; do
+            ln -s ../../../../../../data/gtex/pantry_phenos/{wildcards.tissue}/$modality.bed.gz {params.tmp_dir}/output/$modality.bed.gz
+        done
+        cd {params.tmp_dir}
+        bash ~/tools/Pantry/phenotyping/scripts/combine_modalities.sh \
+            {params.modalities} latent_residual
+        cd -
+        mv {params.tmp_dir}/output/cross_modality.bed.gz {output.bed}
+        mv {params.tmp_dir}/output/cross_modality.phenotype_groups.txt {output.groups}
+        rm -r {params.tmp_dir}
+        """
+
+rule combine_modalities_geuvadis:
+    """Combine latent and Pantry phenotypes"""
+    input:
+        latent_bed = 'geuvadis-residual/input/phenotypes_original/Geuvadis-latent.bed.gz',
+        pantry_beds = expand('../data/geuvadis/pantry/output/{modality}.bed.gz', modality = modalities),
+    output:
+        bed = 'geuvadis-residual/input/phenotypes_original/Geuvadis-cross_latent.bed.gz',
+        groups = 'geuvadis-residual/input/phenotypes_original/Geuvadis-cross_latent.phenotype_groups.txt',
+    params:
+        tmp_dir = 'geuvadis-residual/input/phenotypes_original/tmp_latent',
+        modalities = modalities,
+    shell:
+        """
+        set -e
+        mkdir {params.tmp_dir}
+        mkdir {params.tmp_dir}/output
+        ln -s ../../Geuvadis-latent.bed.gz {params.tmp_dir}/output/latent_residual.bed.gz
+        for modality in {params.modalities}; do
+            ln -s ../../../../../../data/geuvadis/pantry/output/$modality.bed.gz {params.tmp_dir}/output/$modality.bed.gz
+        done
+        cd {params.tmp_dir}
+        bash ~/tools/Pantry/phenotyping/scripts/combine_modalities.sh \
+            {params.modalities} latent_residual
+        cd -
+        mv {params.tmp_dir}/output/cross_modality.bed.gz {output.bed}
+        mv {params.tmp_dir}/output/cross_modality.phenotype_groups.txt {output.groups}
+        rm -r {params.tmp_dir}
+        """
+
+rule combine_modalities_geuvadis_pantry:
+    """Combine Pantry phenotypes for residual analysis comparison"""
+    input:
+        pantry_beds = expand('../data/geuvadis/pantry/output/{modality}.bed.gz', modality = modalities),
+    output:
+        bed = 'geuvadis-residual/input/phenotypes_original/Geuvadis-cross_pantry.bed.gz',
+        groups = 'geuvadis-residual/input/phenotypes_original/Geuvadis-cross_pantry.phenotype_groups.txt',
+    params:
+        tmp_dir = 'geuvadis-residual/input/phenotypes_original/tmp_pantry',
+        modalities = modalities,
+    shell:
+        """
+        set -e
+        mkdir {params.tmp_dir}
+        mkdir {params.tmp_dir}/output
+        for modality in {params.modalities}; do
+            ln -s ../../../../../../data/geuvadis/pantry/output/$modality.bed.gz {params.tmp_dir}/output/$modality.bed.gz
+        done
+        cd {params.tmp_dir}
+        bash ~/tools/Pantry/phenotyping/scripts/combine_modalities.sh {params.modalities}
+        cd -
+        mv {params.tmp_dir}/output/cross_modality.bed.gz {output.bed}
+        mv {params.tmp_dir}/output/cross_modality.phenotype_groups.txt {output.groups}
+        rm -r {params.tmp_dir}
+        """
+
+rule prepare_phenotypes_gtex_full:
+    """Convert to individual IDs and filter samples"""
+    input:
+        latent_bed = '{group}-full/input/phenotypes_original/{tissue}-latent.bed.gz',
+        latent_groups = '{group}-full/input/phenotypes_original/{tissue}-latent.phenotype_groups.txt',
+    output:
+        latent_bed = '{group,gtex.*}-full/input/phenotypes/{tissue}-latent.bed.gz',
+        latent_groups = '{group,gtex.*}-full/input/phenotypes/{tissue}-latent.phenotype_groups.txt',
+    params:
+        tmp_in_dir = '{group}-full/input/phenotypes_original/tmp_in_{tissue}',
+        tmp_out_dir = '{group}-full/input/phenotypes_original/tmp_out_{tissue}',
+        pheno_dir = '{group}-full/input/phenotypes',
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        mkdir {params.tmp_in_dir}
+        ln -s ../{wildcards.tissue}-latent.bed.gz {params.tmp_in_dir}/{wildcards.tissue}-latent.bed.gz
+        ln -s ../{wildcards.tissue}-latent.phenotype_groups.txt {params.tmp_in_dir}/{wildcards.tissue}-latent.phenotype_groups.txt
+        python3 ~/tools/Pantry/pheast/scripts/prepare_phenotypes.py \
+            --indir {params.tmp_in_dir} \
+            --out {params.tmp_out_dir} \
+            --map ../data/gtex/sample_individual_map.tsv \
+            --individuals ../../pantry/GTEx/geno/ids.txt
+        mv -i {params.tmp_out_dir}/* {params.pheno_dir}
+        rm -r {params.tmp_in_dir}
+        rmdir {params.tmp_out_dir}
+        """
+
+rule prepare_phenotypes_gtex_residual:
+    """Convert to individual IDs and filter samples"""
+    input:
+        latent_bed = '{group}-residual/input/phenotypes_original/{tissue}-latent.bed.gz',
+        latent_groups = '{group}-residual/input/phenotypes_original/{tissue}-latent.phenotype_groups.txt',
+        cross_bed = '{group}-residual/input/phenotypes_original/{tissue}-cross_latent.bed.gz',
+        cross_groups = '{group}-residual/input/phenotypes_original/{tissue}-cross_latent.phenotype_groups.txt',
+    output:
+        latent_bed = '{group,gtex.*}-residual/input/phenotypes/{tissue}-latent.bed.gz',
+        latent_groups = '{group,gtex.*}-residual/input/phenotypes/{tissue}-latent.phenotype_groups.txt',
+        cross_bed = '{group,gtex.*}-residual/input/phenotypes/{tissue}-cross_latent.bed.gz',
+        cross_groups = '{group,gtex.*}-residual/input/phenotypes/{tissue}-cross_latent.phenotype_groups.txt',
+    params:
+        tmp_in_dir = '{group}-residual/input/phenotypes_original/tmp_in_{tissue}',
+        tmp_out_dir = '{group}-residual/input/phenotypes_original/tmp_out_{tissue}',
+        pheno_dir = '{group}-residual/input/phenotypes',
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        mkdir {params.tmp_in_dir}
+        ln -s ../{wildcards.tissue}-latent.bed.gz {params.tmp_in_dir}/{wildcards.tissue}-latent.bed.gz
+        ln -s ../{wildcards.tissue}-latent.phenotype_groups.txt {params.tmp_in_dir}/{wildcards.tissue}-latent.phenotype_groups.txt
+        ln -s ../{wildcards.tissue}-cross_latent.bed.gz {params.tmp_in_dir}/{wildcards.tissue}-cross_latent.bed.gz
+        ln -s ../{wildcards.tissue}-cross_latent.phenotype_groups.txt {params.tmp_in_dir}/{wildcards.tissue}-cross_latent.phenotype_groups.txt
+        python3 ~/tools/Pantry/pheast/scripts/prepare_phenotypes.py \
+            --indir {params.tmp_in_dir} \
+            --out {params.tmp_out_dir} \
+            --map ../data/gtex/sample_individual_map.tsv \
+            --individuals ../../pantry/GTEx/geno/ids.txt
+        mv -i {params.tmp_out_dir}/* {params.pheno_dir}
+        rm -r {params.tmp_in_dir}
+        rmdir {params.tmp_out_dir}
+        """
+
+rule prepare_phenotypes_geuvadis:
+    """Geuvadis samples are already individual IDs and filtered"""
+    input:
+        file = 'geuvadis-{mode}/input/phenotypes_original/{file}',
+    output:
+        file = 'geuvadis-{mode}/input/phenotypes/{file}',
+    shell:
+        """
+        cp {input.file} {output.file}
+        """
+
+rule index_bed:
+    """Index a BED file."""
+    input:
+        bed = '{group}-{mode}/input/phenotypes/{file}.bed.gz',
+    output:
+        tbi = '{group}-{mode}/input/phenotypes/{file}.bed.gz.tbi'
+    shell:
+        'tabix {input.bed}'

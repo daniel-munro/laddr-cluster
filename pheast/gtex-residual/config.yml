@@ -9,12 +9,14 @@ phenotype_dir: input/phenotypes
 geno_prefix: ../../../pantry/GTEx/geno/gtex
 
 ## Samples to include:
-samples_file: input/samples.txt
+## (Only used to confirm IDs are present in genotypes. So for running
+## multiple tissues, use this to allow them all to run.)
+samples_file: ../../../pantry/GTEx/geno/ids.txt
 
 ## Optional parameters
 # Provide a list of SNP IDs to include when computing TWAS weights:
 # It is recommended to include only SNPs present in the LD reference used later for TWAS.
-twas_snps: ../../../pantry/GTEx/geno/LD_SNPs.txt
+# twas_snps: input/ld_snps_chr1.txt
 # Path to intermediate file directory, in case you don't want it inside this project directory due to its size:
 # This directory will be created if it doesn't exist, and will contain any generated (i.e. not input) files besides the final analysis results.
 # intermediate_dir: intermediate
@@ -25,20 +27,16 @@ twas_snps: ../../../pantry/GTEx/geno/LD_SNPs.txt
 # {modality}.phenotype_groups.txt file in the case of grouped phenotypes.
 # 'cross_modality' is used to run cross-modality QTL mapping. See Project/scripts/combine_modalities.sh for more details.
 modalities:
-  cross_modality:
+  ADPSBQ-cross_latent:
     grouped: true
-  # alt_polyA:
-  #   grouped: true
-  # alt_TSS:
-  #   grouped: true
-  # expression:
-  #   grouped: false
-  # isoforms:
-  #   grouped: true
-  # splicing:
-  #   grouped: true
-  # stability:
-  #   grouped: false
+  ARTAORT-cross_latent:
+    grouped: true
+  BRNCTXB-cross_latent:
+    grouped: true
+  ESPGEJ-cross_latent:
+    grouped: true
+  SKINS-cross_latent:
+    grouped: true
 
 ## Analyses
 # List the analyses to run. A snakefile will be loaded for each analysis,

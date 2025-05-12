@@ -6,10 +6,10 @@
 phenotype_dir: input/phenotypes
 
 ## Give the path prefix to genotypes in plink1 (bed/bim/fam) format:
-geno_prefix: ../../../pantry/Geuvadis/input/genotype/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.nochr.chr1-22
+geno_prefix: ../../data/geuvadis/geno/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.chr1-22
 
 ## Samples to include:
-samples_file: input/samples.txt
+samples_file: ../../data/geuvadis/samples.txt
 
 ## Optional parameters
 # Provide a list of SNP IDs to include when computing TWAS weights:
@@ -23,24 +23,10 @@ twas_snps: ../../../pantry/GTEx/geno/LD_SNPs.txt
 # List the modalities to use. The phenotype table ({modality}.bed.gz)
 # must be present in the phenotype_dir, along with a
 # {modality}.phenotype_groups.txt file in the case of grouped phenotypes.
-# 'all' is used to run cross-modality QTL mapping. See Project/scripts/combine_modalities.sh for more details.
+# 'cross_modality' is used to run cross-modality QTL mapping. See Project/scripts/combine_modalities.sh for more details.
 modalities:
-  # all:
-  #   grouped: true
-  # alt_polyA:
-  #   grouped: true
-  # alt_TSS:
-  #   grouped: true
-  # expression:
-  #   grouped: false
-  # isoforms:
-  #   grouped: true
-  latent_full:
+  Geuvadis-latent:
     grouped: true
-  # splicing:
-  #   grouped: true
-  # stability:
-  #   grouped: false
 
 ## Analyses
 # List the analyses to run. A snakefile will be loaded for each analysis,
@@ -50,11 +36,11 @@ analyses:
   # heritability:
   #   files:
   #   - '{modality}.hsq.tsv'
-  # qtl:
-  #   files:
-  #   - '{modality}.cis_qtl.txt.gz'
-  #   - '{modality}.cis_independent_qtl.txt.gz'
-  #   # - '{modality}.trans_qtl.txt.gz'
-  twas:
+  qtl:
     files:
-    - '{modality}.tar.bz2'
+    - '{modality}.cis_qtl.txt.gz'
+    - '{modality}.cis_independent_qtl.txt.gz'
+    # - '{modality}.trans_qtl.txt.gz'
+  # twas:
+  #   files:
+  #   - '{modality}.tar.bz2'
