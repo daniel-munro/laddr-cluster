@@ -1,44 +1,29 @@
-from pathlib import Path
+"""Process latent phenotyping output for held-out runs and set up for Pheast"""
 
-input_dir = Path('../data/input')
-pantry_phenos_dir = Path('../../pantry/Geuvadis/output')
-working_dir = Path('.')
-ref_anno = '../../pantry/Geuvadis/input/human_ref/Homo_sapiens.GRCh38.106.gtf'
-geno_prefix = '../../pantry/Geuvadis/input/genotype/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.nochr.chr1-22'
-
+# Use GTF without gene ID versions
+ref_anno='../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf'
 modalities = ['alt_polyA', 'alt_TSS', 'expression', 'isoforms', 'splicing', 'stability']
-# modalities = ['alt_polyA']
 
 localrules:
-    # latent_pheno_groups,
-    combined_pheno_groups,
+    index_bed,
 
 rule all:
     input:
-        expand(working_dir / 'qtl' / 'all-no_{modality}.bed.gz', modality=modalities),
-        expand(working_dir / 'qtl' / 'all-no_{modality}.phenotype_groups.txt', modality=modalities),
-        expand(working_dir / 'covar' / 'all-no_{modality}.covar.tsv', modality=modalities),
-        expand(working_dir / 'qtl' / 'all-no_{modality}.cis_independent_qtl.txt.gz', modality=modalities),
-
-##################################
-## Genetic analysis preparation ##
-##################################
+        expand('qtl/input/phenotypes/cross-no_{modality}.bed.gz.tbi', modality=modalities),
+        expand('qtl/input/phenotypes/cross-no_{modality}.phenotype_groups.txt', modality=modalities),
 
 rule assemble_latent_bed:
     """Add gene info to latent phenotypes to generate BED file"""
     input:
-        phenos = working_dir / '{resid}' / 'phenotypes' / 'latent_phenos.Geuvadis.tsv.gz',
+        phenos = 'no_{modality}/phenotypes/latent_phenos.Geuvadis.tsv.gz',
         ref_anno = ref_anno,
     output:
-        bed = working_dir / 'qtl' / 'latent-{resid}.unnorm.bed',
-    params:
-        qtl_dir = working_dir / 'qtl',
+        bed = 'qtl/input/phenotypes/unnorm/latent-no_{modality}.unnorm.bed',
     resources:
-        mem_mb = 16000,
+        mem_mb = 32000,
     shell:
         """
-        mkdir -p {params.qtl_dir}
-        python3 ~/tools/Pantry/Project/scripts/assemble_bed.py \
+        python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
             --type latent \
             --input {input.phenos} \
             --ref_anno {input.ref_anno} \
@@ -48,19 +33,17 @@ rule assemble_latent_bed:
 rule normalize_latent:
     """Quantile-normalize values for QTL mapping"""
     input:
-        bed = working_dir / 'qtl' / 'latent-{params}.unnorm.bed',
-        samples = input_dir / 'samples.txt',
+        bed = 'qtl/input/phenotypes/unnorm/latent-no_{modality}.unnorm.bed',
     output:
-        bed = working_dir / 'qtl' / 'latent-{params}.bed.gz',
+        bed = 'qtl/input/phenotypes/latent-no_{modality}.bed.gz',
     params:
-        bed = str(working_dir / 'qtl' / 'latent-{params}.bed'),
+        bed = 'qtl/input/phenotypes/latent-no_{modality}.bed',
     resources:
-        mem_mb = 16000,
+        mem_mb = 32000,
     shell:
         """
-        python3 ~/tools/Pantry/Project/scripts/normalize_phenotypes.py \
+        python3 ~/tools/Pantry/phenotyping/scripts/normalize_phenotypes.py \
             --input {input.bed} \
-            --samples {input.samples} \
             --output {params.bed}
         bgzip {params.bed}
         """
@@ -68,214 +51,44 @@ rule normalize_latent:
 def pantry_phenos_input(wildcards):
     mods = [m for m in modalities if m != wildcards.modality]
     assert len(mods) == len(modalities) - 1
-    paths = expand(pantry_phenos_dir / '{modality}.bed.gz', modality=mods)
+    paths = expand('../data/geuvadis/pantry/output/{modality}.bed.gz', modality=mods)
     return paths
 
-rule assemble_combined_bed_latent:
-    """Combine Pantry phenotypes and latent phenotypes"""
+rule combine_modalities:
+    """Combine latent and Pantry phenotypes"""
     input:
         pantry_phenos = pantry_phenos_input,
-        latent_phenos = working_dir / 'qtl' / 'latent-no_{modality}.bed.gz',
+        latent_phenos = 'qtl/input/phenotypes/latent-no_{modality}.bed.gz',
     output:
-        bed = working_dir / 'qtl' / 'all-no_{modality}.bed.gz',
+        bed = 'qtl/input/phenotypes/cross-no_{modality}.bed.gz',
+        groups = 'qtl/input/phenotypes/cross-no_{modality}.phenotype_groups.txt',
     params:
-        qtl_dir = working_dir / 'qtl',
-        tmp_bed = str(working_dir / 'qtl' / 'all-no_{modality}_tmp.bed'),
-        bed = str(working_dir / 'qtl' / 'all-no_{modality}.bed'),
-    resources:
-        mem_mb = 16000,
+        tmp_dir = 'qtl/input/phenotypes/tmp_no_{modality}',
+        modalities = lambda wildcards: [m for m in modalities if m != wildcards.modality],
     shell:
         """
-        # First confirm that all bed files have the same header:
-        for phenos in {input.pantry_phenos}; do
-            diff <(zcat {input.pantry_phenos[0]} | head -n 1) <(zcat $phenos | head -n 1)
+        set -e
+        mkdir {params.tmp_dir}
+        mkdir {params.tmp_dir}/output
+        ln -s ../../latent-no_{wildcards.modality}.bed.gz {params.tmp_dir}/output/latent_residual.bed.gz
+        for modality in {params.modalities}; do
+            ln -s ../../../../../../data/geuvadis/pantry/output/$modality.bed.gz {params.tmp_dir}/output/$modality.bed.gz
         done
-        diff <(zcat {input.pantry_phenos[0]} | head -n 1) <(zcat {input.latent_phenos} | head -n 1)
-        rm -rf {params.tmp_bed}
-        for phenos in {input.pantry_phenos}; do
-            echo $phenos
-            # Prepend modality name to phenotype names:
-            modality=$(basename $phenos .bed.gz)
-            zcat $phenos | tail -n+2 | awk -v OFS='\t' -v mod=$modality '{{$4 = mod":"$4; print}}' >> {params.tmp_bed}
-        done
-        zcat {input.latent_phenos} | tail -n+2 | awk -v OFS='\t' '{{$4 = "latent_residual:"$4; print}}' >> {params.tmp_bed}
-        zcat {input.pantry_phenos[0]} | head -n1 > {params.bed} || true
-        sort -k1,1 -k2,2n {params.tmp_bed} >> {params.bed}
-        rm {params.tmp_bed}
-        bgzip {params.bed}
+        cd {params.tmp_dir}
+        bash ~/tools/Pantry/phenotyping/scripts/combine_modalities.sh \
+            {params.modalities} latent_residual
+        cd -
+        mv {params.tmp_dir}/output/cross_modality.bed.gz {output.bed}
+        mv {params.tmp_dir}/output/cross_modality.phenotype_groups.txt {output.groups}
+        rm -r {params.tmp_dir}
         """
 
 rule index_bed:
     """Index a BED file."""
     input:
-        bed = working_dir / 'qtl' / '{fname}.bed.gz',
+        bed = 'qtl/input/phenotypes/cross-no_{modality}.bed.gz',
     output:
-        tbi = working_dir / 'qtl' / '{fname}.bed.gz.tbi'
+        tbi = 'qtl/input/phenotypes/cross-no_{modality}.bed.gz.tbi'
     shell:
         'tabix {input.bed}'
 
-# rule latent_pheno_groups:
-#     """Group phenotypes by gene for tensorQTL"""
-#     input:
-#         bed = working_dir / 'qtl' / 'latent-{params}.bed.gz',
-#     output:
-#         groups = working_dir / 'qtl' / 'latent-{params}.phenotype_groups.txt',
-#     shell:
-#         """
-#         zcat < {input.bed} \
-#             | tail -n +2 \
-#             | cut -f4 \
-#             | awk '{{ g=$1; sub(/:.*$/, "", g); print $1 "\t" g }}' \
-#             > {output.groups}
-#         """
-
-rule combined_pheno_groups:
-    """Group phenotypes by gene for tensorQTL"""
-    input:
-        bed = working_dir / 'qtl' / 'all-{version}.bed.gz',
-    output:
-        groups = working_dir / 'qtl' / 'all-{version}.phenotype_groups.txt',
-    shell:
-        """
-        zcat {input.bed} | tail -n+2 | cut -f4 | awk -F'[:.]' '{{print $0"\t"$2}}' > {output.groups}
-        """
-
-rule prune_for_covar:
-    """Prune genotypes to compute covariate PCs.
-    --indep-pairwise parameters are based on GTEx methods.
-    """
-    input:
-        geno = multiext(geno_prefix, '.bed', '.bim', '.fam'),
-    output:
-        vcf = working_dir / 'covar' / 'geno_pruned.vcf.gz',
-    params:
-        geno_prefix = geno_prefix,
-        covar_dir = working_dir / 'covar',
-        pruned_prefix = working_dir / 'covar' / 'geno_pruned',
-    shell:
-        # --geno 0.05 filters variants with >5% missing values (the rest will be imputed).
-        # Default is 0 so that samples with many more genotyped variants than others don't
-        # result in other samples having mostly missing values after pruning.
-        """
-        mkdir -p {params.covar_dir}
-        plink2 \
-            --bfile {params.geno_prefix} \
-            --geno 0.00 \
-            --maf 0.05 \
-            --indep-pairwise 200 100 0.1 \
-            --out {params.pruned_prefix}
-        plink2 \
-            --bfile {params.geno_prefix} \
-            --extract {params.pruned_prefix}.prune.in \
-            --export vcf bgz id-paste=iid \
-            --out {params.pruned_prefix}
-        """
-
-rule covariates:
-    """Compute genotype and expression PCs and combine."""
-    input:
-        vcf = working_dir / 'covar' / 'geno_pruned.vcf.gz',
-        bed = working_dir / 'qtl' / '{phenos}.bed.gz',
-    output:
-        covar = working_dir / 'covar' / '{phenos}.covar.tsv',
-    params:
-        n_geno_pcs = 5,
-        n_pheno_pcs = 20,
-    resources:
-        mem_mb = lambda w, attempt: 32000 * 2**(attempt-1),
-    retries: 2
-    shell:
-        """
-        Rscript ~/tools/Pantry/Pheast/scripts/covariates.R \
-            {input.vcf} \
-            {input.bed} \
-            {params.n_geno_pcs} \
-            {params.n_pheno_pcs} \
-            {output.covar}
-        """
-
-######################
-## Genetic analysis ##
-######################
-
-rule tensorqtl_perm:
-    """Map cis-QTLs, determining significance using permutations.
-    Outputs the top association per phenotype.
-    """
-    input:
-        geno = multiext(geno_prefix, '.bed', '.bim', '.fam'),
-        bed = working_dir / 'qtl' / '{phenos}.bed.gz',
-        bedi = working_dir / 'qtl' / '{phenos}.bed.gz.tbi',
-        covar = working_dir / 'covar' / '{phenos}.covar.tsv',
-        groups = working_dir / 'qtl' / '{phenos}.phenotype_groups.txt',
-    output:
-        qtl = working_dir / 'qtl' / '{phenos}.cis_qtl.txt.gz',
-    params:
-        geno_prefix = geno_prefix,
-    resources:
-        mem_mb = lambda w, attempt: 32000 * 2**(attempt-1),
-        runtime = '12h',
-        # Define slurm_partition, slurm_account, and slurm_extra for GPU jobs as needed in the Snakemake profile config.yaml
-    retries: 2
-    shell:
-        """
-        python ~/tools/Pantry/Pheast/scripts/run_tensorqtl.py \
-            {params.geno_prefix} \
-            {input.bed} \
-            {output.qtl} \
-            --covariates {input.covar} \
-            --groups {input.groups} \
-            --mode cis
-        """
-
-rule tensorqtl_independent:
-    """Use stepwise regression to identify multiple conditionally independent cis-QTLs per phenotype."""
-    input:
-        geno = multiext(geno_prefix, '.bed', '.bim', '.fam'),
-        bed = working_dir / 'qtl' / '{phenos}.bed.gz',
-        bedi = working_dir / 'qtl' / '{phenos}.bed.gz.tbi',
-        covar = working_dir / 'covar' / '{phenos}.covar.tsv',
-        groups = working_dir / 'qtl' / '{phenos}.phenotype_groups.txt',
-        cis = working_dir / 'qtl' / '{phenos}.cis_qtl.txt.gz',
-    output:
-        qtl = working_dir / 'qtl' / '{phenos}.cis_independent_qtl.txt.gz',
-    params:
-        geno_prefix = geno_prefix,
-    resources:
-        mem_mb = lambda w, attempt: 32000 * 2**(attempt-1),
-        runtime = '20h',
-        # Define slurm_partition, slurm_account, and slurm_extra for GPU jobs as needed in the Snakemake profile config.yaml
-    retries: 2
-    shell:
-        """
-        python ~/tools/Pantry/Pheast/scripts/run_tensorqtl.py \
-            {params.geno_prefix} \
-            {input.bed} \
-            {output.qtl} \
-            --covariates {input.covar} \
-            --cis_output {input.cis} \
-            --groups {input.groups} \
-            --mode cis_independent
-        """
-
-####################
-## Inspect models ##
-####################
-
-rule inspect_model:
-    """Get stats for a latent phenotyping model"""
-    input:
-        phenos = working_dir / 'latent-{version}.tsv.gz',
-    output:
-        tsv = working_dir / 'inspect/model_info.{version}.{gene_id}.tsv',
-    shell:
-        """
-        python ~/tools/latent-rna/scripts/inspect_model.py \
-            -g {wildcards.gene_id} \
-            --bigwig-paths-file covg_bigwig_files.txt \
-            --bins-dir gene_bins \
-            --norm-covg-dir covg_norm-{wildcards.version} \
-            --models-dir models-{wildcards.version} \
-            --phenotypes latent-{wildcards.version}.tsv.gz \
-            -o inspect/model_info.{wildcards.version}.{wildcards.gene_id}.tsv
-        """
