@@ -4,7 +4,7 @@ old
 old_*
 compare/trial*/*/*
 compare/old*
-compare/Homo_sapiens.GRCh38.106.chr7.gtf
+compare/Homo_sapiens.GRCh38.113.chr.chrom.chr7.gtf
 !compare/bin_pheno_qtl_counts.tsv
 !compare/coverage_manifest.tsv
 !compare/Snakefile

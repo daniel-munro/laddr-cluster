@@ -1,22 +1,21 @@
+"""Compare latent-rna results from different parameter settings"""
+
 from pathlib import Path
 
-DEFAULT_DIR = 'trial0/binning-n_4' # Directory to read universal files like n_batches.txt
-
-BATCH_FILE = Path(f'{DEFAULT_DIR}/info/n_batches.txt')
+BATCH_FILE = Path(f'trial0/binning-n_4/info/n_batches.txt')
 assert BATCH_FILE.exists(), f'{BATCH_FILE} not found. Run latent-rna setup first.'
 with open(BATCH_FILE, 'r') as f:
     N_BATCHES = int(f.read())
 
-input_dir = Path('../data/input')
-ref_genome = '../../pantry/Geuvadis/input/human_ref/Homo_sapiens.GRCh38.dna.primary_assembly.fa'
-## awk '$1 ~ /^#!/ || $1 == "7"' ../../pantry/Geuvadis/input/human_ref/Homo_sapiens.GRCh38.106.gtf > Homo_sapiens.GRCh38.106.chr7.gtf
-ref_anno = 'Homo_sapiens.GRCh38.106.chr7.gtf'
-bam_dir = input_dir / 'bam'
-geno_prefix = '../../pantry/Geuvadis/input/genotype/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.nochr.chr1-22'
+## awk '$1 ~ /^#!/ || $1 == "chr7"' ../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf > Homo_sapiens.GRCh38.113.chr.chrom.chr7.gtf
+ref_anno = 'Homo_sapiens.GRCh38.113.chr.chrom.chr7.gtf'
+geno_prefix = '../data/geuvadis/geno/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.chr1-22'
 
 binnings = []
 for min_covg in [16, 32, 64, 128]:
     for max_corr in [0.8, 0.9, 0.95]:
+        if (min_covg, max_corr) in [(16, 0.95), (32, 0.95)]:
+            continue  # Too large
         binnings.append(f'a1_{min_covg}_{max_corr}')
 for bins_per_gene in [128, 256, 384, 512, 768, 1024]:
     binnings.append(f'a2_{bins_per_gene}')
@@ -44,12 +43,12 @@ rule all:
         # expand('{trial}/binning-{binning}/covg_norm/Geuvadis/batch_{batch}.npy', trial=trials, binning=['n_4'], batch=range(N_BATCHES)),
         # expand('{trial}/{param}/models/models_batch_{batch}.pickle', trial=trials, param=['binning-n_4'], batch=range(N_BATCHES)),
         # expand('{trial}/binning-{binning}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, binning=binnings),
-        # expand('{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, param=['binning-n_4']),
+        expand('{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, param=params),
         # expand('{trial}/qtl/latent-{param}.bed.gz', trial=trials, param=params),
         # expand('{trial}/qtl/latent-{param}.cis_independent_qtl.txt.gz', trial=trials, param=params),
-        'bin_pheno_qtl_counts.tsv',
+        # 'bin_pheno_qtl_counts.tsv',
 
-rule get_gene_bins:
+rule latent_rna_binning:
     """Divide gene features into bins"""
     input:
         genes = '{trial}/{param}/info/genes.tsv',
@@ -60,48 +59,52 @@ rule get_gene_bins:
     params:
         project_dir = '{trial}/{param}',
     resources:
-        mem_mb = 16000,
+        mem_mb = 32000,
     shell:
         """
         latent-rna binning -p {params.project_dir} -b {wildcards.batch}
         """
 
-rule prepare_coverage:
+rule latent_rna_coverage:
     """Assemble coverage across samples, normalize, regress out explicit phenotypes, and bin into batches for PCA"""
     input:
         # bw = lambda w: sample_table.loc[sample_table['dataset'] == w.dataset, 'path'].tolist(),
         bins = '{trial}/{param}/gene_bins/batch_{batch}.bed.gz',
-        # phenos = config['input']['pheno_paths'],
+        median_covg = '{trial}/{param}/info/median_coverage.txt',
     output:
         covg = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.npy',
-        bins = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz',
+        covg_norm_bins = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz',
     params:
         project_dir = '{trial}/{param}',
     resources:
-        walltime = 24,
+        mem_mb = 32000,
+        runtime = '12h',
     shell:
         """
         latent-rna coverage -p {params.project_dir} -b {wildcards.batch}
         """
 
-rule fit_models:
+rule latent_rna_fit:
     """Fit models to latent features"""
     input:
         covg_norm = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.npy',
-        bins = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz',
+        covg_norm_bins = '{trial}/{param}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz',
     output:
         models = '{trial}/{param}/models/models_batch_{batch}.pickle',
     params:
         project_dir = '{trial}/{param}',
+    resources:
+        mem_mb = 16000,
     shell:
         """
         latent-rna fit -p {params.project_dir} -b {wildcards.batch}
         """
 
-rule get_latent_phenotypes:
+rule latent_rna_transform:
     """Apply models to generate latent phenotypes"""
     input:
         covg_norm = expand('{{trial}}/{{param}}/covg_norm/Geuvadis/batch_{batch}.npy', batch=range(N_BATCHES)),
+        covg_norm_bins = expand('{{trial}}/{{param}}/covg_norm/Geuvadis/batch_{batch}.bins.tsv.gz', batch=range(N_BATCHES)),
         models = expand('{{trial}}/{{param}}/models/models_batch_{batch}.pickle', batch=range(N_BATCHES)),
     output:
         phenos = '{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz',
@@ -130,7 +133,7 @@ rule assemble_latent_bed:
     shell:
         """
         mkdir -p {params.qtl_dir}
-        python3 ~/tools/Pantry/Project/scripts/assemble_bed.py \
+        python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
             --type latent \
             --input {input.phenos} \
             --ref_anno {input.ref_anno} \
@@ -141,7 +144,6 @@ rule normalize_latent:
     """Quantile-normalize values for QTL mapping"""
     input:
         bed = '{trial}/qtl/latent-{param}.unnorm.bed',
-        samples = input_dir / 'samples.txt',
     output:
         bed = '{trial}/qtl/latent-{param}.bed.gz',
     params:
@@ -150,9 +152,8 @@ rule normalize_latent:
         mem_mb = 16000,
     shell:
         """
-        python3 ~/tools/Pantry/Project/scripts/normalize_phenotypes.py \
+        python3 ~/tools/Pantry/phenotyping/scripts/normalize_phenotypes.py \
             --input {input.bed} \
-            --samples {input.samples} \
             --output {params.bed}
         bgzip {params.bed}
         """
@@ -166,7 +167,6 @@ rule index_bed:
     shell:
         'tabix {input.bed}'
 
-
 rule latent_pheno_groups:
     """Group phenotypes by gene for tensorQTL"""
     input:
@@ -178,8 +178,8 @@ rule latent_pheno_groups:
         zcat < {input} \
             | tail -n +2 \
             | cut -f4 \
-            | awk '{{ g=$1; sub(/:.*$/, "", g); print $1 "\t" g }}' \
-            > {output}
+            | awk '{{ g=$1; sub(/__.*$/, "", g); print $1 "\t" g }}' \
+            > {output.groups}
         """
 
 rule prune_for_covar:
@@ -189,7 +189,7 @@ rule prune_for_covar:
     input:
         plink = multiext(geno_prefix, '.bed', '.bim', '.fam'),
     output:
-        vcf = '{trial}/covar/geno_pruned.vcf.gz',
+        geno = multiext('{trial}/covar/geno_pruned', '.bed', '.bim', '.fam'),
     params:
         geno_prefix = geno_prefix,
         covar_dir = '{trial}/covar',
@@ -209,37 +209,38 @@ rule prune_for_covar:
         plink2 \
             --bfile {params.geno_prefix} \
             --extract {params.pruned_prefix}.prune.in \
-            --export vcf bgz id-paste=iid \
+            --make-bed \
             --out {params.pruned_prefix}
         """
 
 rule covariates:
     """Compute genotype and expression PCs and combine."""
     input:
-        vcf = '{trial}/covar/geno_pruned.vcf.gz',
+        geno = multiext('{trial}/covar/geno_pruned', '.bed', '.bim', '.fam'),
         bed = '{trial}/qtl/latent-{param}.bed.gz',
     output:
         tsv = '{trial}/covar/latent-{param}.covar.tsv',
     params:
+        pruned_prefix = '{trial}/covar/geno_pruned',
         n_geno_pcs = 5,
         n_pheno_pcs = 20,
     resources:
         mem_mb = 16000,
     shell:
         """
-        Rscript ~/tools/Pantry/Pheast/scripts/covariates.R \
-            {input.vcf} \
+        Rscript ~/tools/Pantry/pheast/scripts/covariates.R \
+            {params.pruned_prefix} \
             {input.bed} \
             {params.n_geno_pcs} \
             {params.n_pheno_pcs} \
-            {output}
+            {output.tsv}
         """
 
 ######################
 ## Genetic analysis ##
 ######################
 
-rule tensorqtl_perm:
+rule tensorqtl_cis:
     """Map cis-QTLs, determining significance using permutations.
     Outputs the top association per phenotype.
     """
@@ -254,12 +255,11 @@ rule tensorqtl_perm:
     params:
         geno_prefix = geno_prefix,
     resources:
-        walltime = 12,
         mem_mb = 16000,
         # Define slurm_partition, slurm_account, and slurm_extra for GPU jobs as needed in the Snakemake profile config.yaml
     shell:
         """
-        python ~/tools/Pantry/Pheast/scripts/run_tensorqtl.py \
+        python ~/tools/Pantry/pheast/scripts/run_tensorqtl.py \
             {params.geno_prefix} \
             {input.bed} \
             {output.qtl} \
@@ -268,7 +268,7 @@ rule tensorqtl_perm:
             --mode cis
         """
 
-rule tensorqtl_independent:
+rule tensorqtl_cis_independent:
     """Use stepwise regression to identify multiple conditionally independent cis-QTLs per phenotype."""
     input:
         geno = multiext(geno_prefix, '.bed', '.bim', '.fam'),
@@ -282,12 +282,11 @@ rule tensorqtl_independent:
     params:
         geno_prefix = geno_prefix,
     resources:
-        walltime = 20,
         mem_mb = 16000,
         # Define slurm_partition, slurm_account, and slurm_extra for GPU jobs as needed in the Snakemake profile config.yaml
     shell:
         """
-        python ~/tools/Pantry/Pheast/scripts/run_tensorqtl.py \
+        python ~/tools/Pantry/pheast/scripts/run_tensorqtl.py \
             {params.geno_prefix} \
             {input.bed} \
             {output.qtl} \
