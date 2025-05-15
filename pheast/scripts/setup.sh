@@ -1,6 +1,6 @@
 set -e
 
-for projdir in geuvadis-full geuvadis-residual gtextcga-full gtex-residual; do
+for projdir in geuvadis-full geuvadis-residual gtex5-full gtex5-residual gtextcga-full gtex-residual; do
     # Confirm projdir does not already exist
     if [ -d "$projdir" ]; then
         echo "Error: $projdir already exists"

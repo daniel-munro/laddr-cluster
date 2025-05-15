@@ -7,8 +7,13 @@ traits = trait_df['Tag'].tolist()
 gwas_n = {traits[i]: n for i, n in enumerate(trait_df['Sample_Size'].tolist())}
 
 chroms = [f'chr{i + 1}' for i in range(22)]
-gtex5 = pd.read_csv('../data/gtex/tissues.gtex5.txt', header=None, names=['id']).id.tolist()
-tissues = [f'gtex5-full-{t}' for t in gtex5]
+
+tissues = {'geuvadis': 'Geuvadis'}
+with open('../data/gtex/tissues.gtex5.txt') as f:
+    tissues['gtex5'] = f.read().splitlines()
+with open('../data/gtex/tissues.gtex.txt') as f:
+    tissues['gtex'] = f.read().splitlines()
+    tissues['gtex'] = tissues['gtex5'] # For testing
 
 localrules:
     sumstats,
@@ -16,8 +21,10 @@ localrules:
 rule all:
     input:
         # expand('input/sumstats/{trait}.sumstats', trait=traits),
-        expand('output/{tissue}/fusion.{tissue}.{trait}.tsv', tissue=tissues, trait=traits),
-        expand('output/twas_hits.{tissue}.tsv', tissue=tissues),
+        # expand('output/{tissue}/fusion.{tissue}.{trait}.tsv', tissue=tissues, trait=traits),
+        'output/twas_hits.geuvadis-full-Geuvadis.tsv',
+        expand('output/twas_hits.gtex5-full-{tissue}.tsv', tissue=tissues['gtex5']),
+        # expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex']),
 
 rule sumstats:
     input:
@@ -37,16 +44,16 @@ rule assoc_test_trait:
     """Run all chromosomes for a trait together"""
     input:
         sumstats = 'input/sumstats/{trait}.sumstats',
-        weights = '../pheast/{tissue}/intermediate/twas/latent_full.pos',
+        weights = '../pheast/{group}-{mode}/intermediate/twas/{tissue}-latent.pos',
         ref_ld_chr = expand('input/LDREF_b38ids_chr/1000G.EUR.{chrom}.{ext}', chrom=chroms, ext=['bed', 'bim', 'fam']),
     output:
-        expand('intermediate/{{tissue}}/{{trait}}/{{trait}}.{chrom}.tsv', chrom=chroms)
+        expand('intermediate/{{group}}-{{mode}}-{{tissue}}/{{trait}}/{{trait}}.{chrom}.tsv', chrom=chroms)
     params:
-        output_dir = 'intermediate/{tissue}/{trait}',
-        weights_dir = '../pheast/{tissue}/intermediate/twas',
+        output_dir = 'intermediate/{group}-{mode}-{tissue}/{trait}',
+        weights_dir = '../pheast/{group}-{mode}/intermediate/twas',
         ref_ld_prefix = 'input/LDREF_b38ids_chr/1000G.EUR.',
-        chroms = ' '.join(chroms),
-        coloc_p = '5e-8', # Hits with p below this are tested for coloc, recommended to be TWAS threshold.
+        chroms = chroms,
+        coloc_p = '5e-8', # Hits with p below this are tested for coloc, recommended to be TWAS threshold or higher.
         gwas_n = lambda w: gwas_n[w.trait],
     group: 'twas'
     threads: 4

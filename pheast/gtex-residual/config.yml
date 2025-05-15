@@ -29,13 +29,101 @@ samples_file: ../../../pantry/GTEx/geno/ids.txt
 modalities:
   ADPSBQ-cross_latent:
     grouped: true
+  ADPVSC-cross_latent:
+    grouped: true
+  ADRNLG-cross_latent:
+    grouped: true
   ARTAORT-cross_latent:
+    grouped: true
+  ARTCRN-cross_latent:
+    grouped: true
+  ARTTBL-cross_latent:
+    grouped: true
+  BREAST-cross_latent:
+    grouped: true
+  BRNACC-cross_latent:
+    grouped: true
+  BRNAMY-cross_latent:
+    grouped: true
+  BRNCDT-cross_latent:
+    grouped: true
+  BRNCHA-cross_latent:
+    grouped: true
+  BRNCHB-cross_latent:
+    grouped: true
+  BRNCTXA-cross_latent:
     grouped: true
   BRNCTXB-cross_latent:
     grouped: true
+  BRNHPP-cross_latent:
+    grouped: true
+  BRNHPT-cross_latent:
+    grouped: true
+  BRNNCC-cross_latent:
+    grouped: true
+  BRNPTM-cross_latent:
+    grouped: true
+  BRNSNG-cross_latent:
+    grouped: true
+  BRNSPC-cross_latent:
+    grouped: true
+  CLNSGM-cross_latent:
+    grouped: true
+  CLNTRN-cross_latent:
+    grouped: true
   ESPGEJ-cross_latent:
     grouped: true
+  ESPMCS-cross_latent:
+    grouped: true
+  ESPMSL-cross_latent:
+    grouped: true
+  FIBRBLS-cross_latent:
+    grouped: true
+  HRTAA-cross_latent:
+    grouped: true
+  HRTLV-cross_latent:
+    grouped: true
+  KDNCTX-cross_latent:
+    grouped: true
+  LCL-cross_latent:
+    grouped: true
+  LIVER-cross_latent:
+    grouped: true
+  LUNG-cross_latent:
+    grouped: true
+  MSCLSK-cross_latent:
+    grouped: true
+  NERVET-cross_latent:
+    grouped: true
+  OVARY-cross_latent:
+    grouped: true
+  PNCREAS-cross_latent:
+    grouped: true
+  PRSTTE-cross_latent:
+    grouped: true
+  PTTARY-cross_latent:
+    grouped: true
+  SKINNS-cross_latent:
+    grouped: true
   SKINS-cross_latent:
+    grouped: true
+  SLVRYG-cross_latent:
+    grouped: true
+  SNTTRM-cross_latent:
+    grouped: true
+  SPLEEN-cross_latent:
+    grouped: true
+  STMACH-cross_latent:
+    grouped: true
+  TESTIS-cross_latent:
+    grouped: true
+  THYROID-cross_latent:
+    grouped: true
+  UTERUS-cross_latent:
+    grouped: true
+  VAGINA-cross_latent:
+    grouped: true
+  WHLBLD-cross_latent:
     grouped: true
 
 ## Analyses

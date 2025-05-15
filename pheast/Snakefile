@@ -9,7 +9,7 @@ with open('../data/gtex/tissues.gtex5.txt') as f:
     tissues['gtex5'] = f.read().splitlines()
 with open('../data/gtex/tissues.gtex.txt') as f:
     tissues['gtex'] = f.read().splitlines()
-    tissues['gtex'] = tissues['gtex5'] # For testing
+    # tissues['gtex'] = tissues['gtex5'] # For testing
 
 localrules:
     latent_pheno_groups,
@@ -24,8 +24,8 @@ rule all:
         expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_latent.phenotype_groups.txt', mode=['residual']),
         expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_pantry.bed.gz.tbi'),
         expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_pantry.phenotype_groups.txt', mode=['residual']),
-        # expand('gtex5-{mode}/input/phenotypes/{tissue}-latent.bed.gz.tbi', mode=['full', 'residual'], tissue=tissues['gtex5']),
-        # expand('gtex5-residual/input/phenotypes/{tissue}-cross_latent.bed.gz.tbi', tissue=tissues['gtex5']),
+        expand('gtex5-{mode}/input/phenotypes/{tissue}-latent.bed.gz.tbi', mode=['full', 'residual'], tissue=tissues['gtex5']),
+        expand('gtex5-residual/input/phenotypes/{tissue}-cross_latent.bed.gz.tbi', tissue=tissues['gtex5']),
         expand('gtex-residual/input/phenotypes/{tissue}-latent.bed.gz.tbi', tissue=tissues['gtex']),
         expand('gtex-residual/input/phenotypes/{tissue}-latent.phenotype_groups.txt', tissue=tissues['gtex']),
         expand('gtex-residual/input/phenotypes/{tissue}-cross_latent.bed.gz.tbi', tissue=tissues['gtex']),

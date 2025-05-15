@@ -6,10 +6,12 @@
 phenotype_dir: input/phenotypes
 
 ## Give the path prefix to genotypes in plink1 (bed/bim/fam) format:
-geno_prefix: ../../data/geuvadis/geno/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.chr1-22
+geno_prefix: ../../../pantry/GTEx/geno/gtex
 
 ## Samples to include:
-samples_file: ../../data/geuvadis/samples.txt
+## (Only used to confirm IDs are present in genotypes. So for running
+## multiple tissues, use this to allow them all to run.)
+samples_file: ../../../pantry/GTEx/geno/ids.txt
 
 ## Optional parameters
 # Provide a list of SNP IDs to include when computing TWAS weights:
@@ -25,7 +27,15 @@ twas_snps: ../../../pantry/GTEx/geno/LD_SNPs.txt
 # {modality}.phenotype_groups.txt file in the case of grouped phenotypes.
 # 'cross_modality' is used to run cross-modality QTL mapping. See Project/scripts/combine_modalities.sh for more details.
 modalities:
-  Geuvadis-latent:
+  ADPSBQ-latent:
+    grouped: true
+  ARTAORT-latent:
+    grouped: true
+  BRNCTXB-latent:
+    grouped: true
+  ESPGEJ-latent:
+    grouped: true
+  SKINS-latent:
     grouped: true
 
 ## Analyses
