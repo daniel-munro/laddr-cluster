@@ -40,6 +40,15 @@ residual/*/*/*
 !residual/*/config.yaml
 !residual/*/coverage_manifest.tsv
 !residual/*/Snakefile
+seqsim/align/*/*
+!seqsim/align/*/config.yml
+!seqsim/align/*/Snakefile
+seqsim/latent/*/*
+!seqsim/latent/*/config.yaml
+!seqsim/latent/*/coverage_manifest.tsv
+!seqsim/latent/*/Snakefile
+seqsim/qtl/*
+!seqsim/qtl/config.yml
 twas/*
 !twas/Snakefile
 twas_old

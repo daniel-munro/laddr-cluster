@@ -43,10 +43,10 @@ rule all:
         # expand('{trial}/binning-{binning}/covg_norm/Geuvadis/batch_{batch}.npy', trial=trials, binning=['n_4'], batch=range(N_BATCHES)),
         # expand('{trial}/{param}/models/models_batch_{batch}.pickle', trial=trials, param=['binning-n_4'], batch=range(N_BATCHES)),
         # expand('{trial}/binning-{binning}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, binning=binnings),
-        expand('{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, param=params),
+        # expand('{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, param=params),
         # expand('{trial}/qtl/latent-{param}.bed.gz', trial=trials, param=params),
         # expand('{trial}/qtl/latent-{param}.cis_independent_qtl.txt.gz', trial=trials, param=params),
-        # 'bin_pheno_qtl_counts.tsv',
+        'bin_pheno_qtl_counts.tsv',
 
 rule latent_rna_binning:
     """Divide gene features into bins"""
@@ -60,6 +60,7 @@ rule latent_rna_binning:
         project_dir = '{trial}/{param}',
     resources:
         mem_mb = 32000,
+        runtime = '8h',
     shell:
         """
         latent-rna binning -p {params.project_dir} -b {wildcards.batch}
@@ -78,7 +79,7 @@ rule latent_rna_coverage:
         project_dir = '{trial}/{param}',
     resources:
         mem_mb = 32000,
-        runtime = '12h',
+        runtime = '16h',
     shell:
         """
         latent-rna coverage -p {params.project_dir} -b {wildcards.batch}

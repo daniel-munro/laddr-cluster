@@ -6,7 +6,7 @@ gtf=../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf
 
 mkdir -p data/fastq align data/bigwig latent
 
-shuf -n 100 ../../data/geuvadis/samples.txt | sort > data/samples.txt
+## shuf -n 100 ../../data/geuvadis/samples.txt | sort > data/samples.txt
 
 #####################
 ## FASTQs and BAMs ##
@@ -14,10 +14,18 @@ shuf -n 100 ../../data/geuvadis/samples.txt | sort > data/samples.txt
 
 for n in 50 75; do
     mkdir -p data/fastq/${n}bp
-    while read sample; do
-        seqtk trimfq -b 0 -e $((read_length-n)) ../../data/geuvadis/fastq/${sample}_1.fastq.gz | gzip > data/fastq/${n}bp/${sample}_R1.fastq.gz
-        seqtk trimfq -b 0 -e $((read_length-n)) ../../data/geuvadis/fastq/${sample}_2.fastq.gz | gzip > data/fastq/${n}bp/${sample}_R2.fastq.gz
-    done < data/samples.txt
+    process_fastq() {
+        local sample=$1
+        local old_length=$2
+        local new_length=$3
+        ntrim=$((old_length-new_length))
+        fastq_1=$(awk -v sample=$sample '$3 == sample {print $1}' ../../data/geuvadis/fastq_map.txt)
+        fastq_2=$(awk -v sample=$sample '$3 == sample {print $2}' ../../data/geuvadis/fastq_map.txt)
+        seqtk trimfq -b 0 -e $ntrim ../../data/geuvadis/fastq/${fastq_1} | gzip > data/fastq/${new_length}bp/${sample}_R1.fastq.gz
+        seqtk trimfq -b 0 -e $ntrim ../../data/geuvadis/fastq/${fastq_2} | gzip > data/fastq/${new_length}bp/${sample}_R2.fastq.gz
+    }
+    export -f process_fastq
+    parallel -j $threads process_fastq {} $read_length $n :::: data/samples.txt
 done
 
 awk '{print $1 "_R1.fastq.gz\t" $1 "_R2.fastq.gz\t" $1}' data/samples.txt > data/fastq/fastq_map.pe.txt
