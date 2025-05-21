@@ -46,11 +46,18 @@ done
 
 for sim in pe-50 pe-75 se1-50 se1-75 se2-50 se2-75; do
     echo $sim
+    mkdir -p data/bigwig/${sim}
     while read sample; do
-        bamCoverage -b align/${sim}/intermediate/star_out/${sample}.Aligned.sortedByCoord.out.bam -o data/bigwig/${sim}/${sample}.bw -of bigwig --binSize 1 -p $threads
+        bamCoverage -b align/${sim}/intermediate/star_out/${sample}.Aligned.sortedByCoord.out.bam \
+            -o data/bigwig/${sim}/${sample}.bw \
+            --binSize 1 \
+            -p $threads
     done < data/samples.txt
     latent-rna init latent/${sim} --template snakemake
     awk -v sim=$sim '{print sim "\t" $1 "\t" $1 ".bw" }' data/samples.txt > latent/${sim}/coverage_manifest.tsv
+    ln -s ../../../phenos/gtextcga-full/info latent/${sim}/info
+    ln -s ../../../phenos/gtextcga-full/gene_bins latent/${sim}/gene_bins
+    ln -s ../../../phenos/gtextcga-full/models latent/${sim}/models
 done
 
 ## (For each, edit config.yaml, run latent-rna setup, and run latent phenotyping)
@@ -59,12 +66,13 @@ done
 ## QTLs ##
 ##########
 
-rsync -av ~/tools/Pantry/phenotyping/ qtl --exclude input --exclude intermediate --exclude output --exclude .snakemake
+rsync -av ~/tools/Pantry/pheast/ qtl --exclude input --exclude intermediate --exclude output --exclude .snakemake
 mkdir -p qtl/input/phenotypes
 
 ## (Edit config)
 
 for sim in pe-50 pe-75 se1-50 se1-75 se2-50 se2-75; do
+    echo $sim
     python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
         --type latent \
         --input latent/${sim}/phenotypes/latent_phenos.${sim}.tsv.gz \

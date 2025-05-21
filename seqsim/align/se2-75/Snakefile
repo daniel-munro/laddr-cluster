@@ -19,7 +19,7 @@ localrules:
 rule all:
     input:
         ## Generate BAM files only:
-        expand(interm_dir / 'star_out' / '{sample_id}.Aligned.sortedByCoord.out.bam', sample_id=samples),
+        expand(interm_dir / 'star_out' / '{sample_id}.Aligned.sortedByCoord.out.bam.bai', sample_id=samples),
         # outputs,
 
 ## General functions used by multiple snakefiles
