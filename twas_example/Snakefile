@@ -1,0 +1,71 @@
+"""Extract data relevant to TWAS hits of interest to plot as examples
+
+- Mean binned coverage and high vs. low sample mean coverage for the gene
+- TWAS weights for the phenotype to plot alongside GWAS z-scores
+- GWAS sumstat z-scores within the gene range
+"""
+
+import pandas as pd
+
+phenos = pd.read_csv('example_phenos.tsv', sep='\t')
+ids = phenos.phenotype_id.tolist()
+genes = phenos.gene_id.unique().tolist()
+trait_gene_pairs = [f'{row["trait"]}-{row["gene_id"]}' for _, row in phenos.iterrows()]
+
+gene_info = pd.read_csv('../phenos/geuvadis-full/info/genes.tsv', sep='\t')
+gene_info = gene_info[gene_info.gene_id.isin(genes)]
+
+localrules:
+    copy_model_info,
+    copy_weights,
+    gwas_sumstats,
+
+rule all:
+    input:
+        expand('model_info/inspect.{gene}.Geuvadis.tsv.gz', gene=genes),
+        expand('weights/{id}.wgt.RDat', id=ids),
+        expand('gwas/{trait_gene}.tsv.gz', zip, trait_gene=trait_gene_pairs),
+
+rule get_model_info:
+    input:
+        phenos = '../phenos/geuvadis-full/phenotypes/latent_phenos.{dataset}.tsv.gz',
+    output:
+        tsv = '../phenos/geuvadis-full/inspect/inspect.{gene}.{dataset}.tsv.gz',
+    params:
+        pheno_dir = '../phenos/geuvadis-full/',
+        dataset = 'Geuvadis',
+    shell:
+        'latent-rna inspect -p {params.pheno_dir} -d {params.dataset} -g {wildcards.gene}'
+
+rule copy_model_info:
+    input:
+        tsv = '../phenos/geuvadis-full/inspect/inspect.{gene}.{dataset}.tsv.gz',
+    output:
+        tsv = 'model_info/inspect.{gene}.{dataset}.tsv.gz',
+    shell:
+        'cp {input.tsv} {output.tsv}'
+
+rule copy_weights:
+    input:
+        wgt = '../pheast/geuvadis-full/intermediate/twas/Geuvadis-latent/{id}.wgt.RDat',
+    output:
+        wgt = 'weights/{id}.wgt.RDat',
+    shell:
+        'cp {input.wgt} {output.wgt}'
+
+rule gwas_sumstats:
+    input:
+        gwas = '../../data/gwas/imputed_gwas_hg38_1.1/imputed_{trait}.txt.gz',
+    output:
+        tsv = 'gwas/{trait}-{gene}.tsv.gz',
+    params:
+        chrom = lambda w: gene_info.seqname[gene_info.gene_id == w.gene].values[0],
+        start = lambda w: gene_info.tss[gene_info.gene_id == w.gene].values[0] - 500000,
+        end = lambda w: gene_info.tss[gene_info.gene_id == w.gene].values[0] + 500000,
+    shell:
+        """
+        zcat {input.gwas} \
+            | awk -v chrom={params.chrom} -v start={params.start} -v end={params.end} 'NR==1 || ($3 == chrom && $4 >= start && $4 <= end)' \
+            | gzip -c \
+            > {output.tsv}
+    """

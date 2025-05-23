@@ -51,4 +51,7 @@ seqsim/qtl/*
 !seqsim/qtl/config.yml
 twas/*
 !twas/Snakefile
+twas_example/gwas
+twas_example/model_info
+twas_example/weights
 twas_old

@@ -13,7 +13,7 @@ mkdir -p $projdir/input/phenotypes_original/unnorm
 ## Latent ##
 ############
 
-for prune in 0 40 100; do
+for prune in 0 20 40 60 80 100; do
     echo "Processing latent-${prune}"
 
     python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
@@ -40,7 +40,7 @@ done
 ## Pantry ##
 ############
 
-for prune in 40 100; do
+for prune in 0 20 40 60 80 100; do
     echo "Processing pantry-${prune}"
 
     cd pantry-${prune}
@@ -49,6 +49,28 @@ for prune in 40 100; do
 
     cp pantry-${prune}/output/cross_modality.bed.gz $projdir/input/phenotypes_original/pantry-${prune}.bed.gz
     cp pantry-${prune}/output/cross_modality.phenotype_groups.txt $projdir/input/phenotypes_original/pantry-${prune}.phenotype_groups.txt
+    for modality in alt_polyA alt_TSS expression isoforms splicing stability; do
+        cp pantry-${prune}/output/${modality}.bed.gz $projdir/input/phenotypes_original/${modality}-${prune}.bed.gz
+    done
+    for modality in alt_polyA alt_TSS isoforms splicing; do
+        cp pantry-${prune}/output/${modality}.phenotype_groups.txt $projdir/input/phenotypes_original/${modality}-${prune}.phenotype_groups.txt
+    done
+done
+for prune in 0; do
+    echo "Processing pantry-${prune}"
+
+    cd pantry-${prune}
+    bash scripts/combine_modalities.sh expression splicing stability
+    cd ..
+
+    cp pantry-${prune}/output/cross_modality.bed.gz $projdir/input/phenotypes_original/pantry-${prune}.bed.gz
+    cp pantry-${prune}/output/cross_modality.phenotype_groups.txt $projdir/input/phenotypes_original/pantry-${prune}.phenotype_groups.txt
+    for modality in expression splicing stability; do
+        cp pantry-${prune}/output/${modality}.bed.gz $projdir/input/phenotypes_original/${modality}-${prune}.bed.gz
+    done
+    for modality in splicing; do
+        cp pantry-${prune}/output/${modality}.phenotype_groups.txt $projdir/input/phenotypes_original/${modality}-${prune}.phenotype_groups.txt
+    done
 done
 
 # Convert to individual IDs and filter samples
@@ -58,9 +80,19 @@ python3 ~/tools/Pantry/pheast/scripts/prepare_phenotypes.py \
     --map ../data/gtex/sample_individual_map.tsv \
     --individuals ../../pantry/GTEx/geno/ids.txt
 
-for type in latent; do # pantry; do
-    for prune in 0 40 100; do
+for type in latent pantry; do
+    for prune in 0 20 40 60 80 100; do
         tabix -p bed $projdir/input/phenotypes/${type}-${prune}.bed.gz
+    done
+done
+for modality in alt_polyA alt_TSS expression isoforms splicing stability; do
+    for prune in 20 40 60 80 100; do
+        tabix -p bed $projdir/input/phenotypes/${modality}-${prune}.bed.gz
+    done
+done
+for modality in expression splicing stability; do
+    for prune in 0; do
+        tabix -p bed $projdir/input/phenotypes/${modality}-${prune}.bed.gz
     done
 done
 
