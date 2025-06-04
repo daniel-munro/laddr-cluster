@@ -4,19 +4,19 @@ mkdir -p data
 Rscript scripts/get_bigwig_urls.R
 
 mkdir -p ../data/gtex/bigwig
-for tissue in $(zcat ../data/gtex/bigwigs.tsv.gz | tail -n +2 | cut -f 2 | sort | uniq); do
+for tissue in $(zcat ../data/gtex/bigwig/bigwigs.tsv.gz | tail -n +2 | cut -f 2 | sort | uniq); do
     echo "Downloading bigwig files for $tissue"
     mkdir -p "../data/gtex/bigwig/$tissue"
-    for url in $(zcat ../data/gtex/bigwigs.tsv.gz | tail -n +2 | awk -v t="$tissue" '$2 == t {print $3}'); do
+    for url in $(zcat ../data/gtex/bigwig/bigwigs.tsv.gz | tail -n +2 | awk -v t="$tissue" '$2 == t {print $3}'); do
         wget --no-verbose -P "../data/gtex/bigwig/$tissue" $url
     done
 done
 
 mkdir -p ../data/tcga/bigwig
-for study in $(zcat ../data/tcga/bigwigs.tsv.gz | tail -n +2 | cut -f 2 | sort | uniq); do
+for study in $(zcat ../data/tcga/bigwig/bigwigs.tsv.gz | tail -n +2 | cut -f 2 | sort | uniq); do
     echo "Downloading bigwig files for $study"
     mkdir -p "../data/tcga/bigwig/$study"
-    for url in $(zcat ../data/tcga/bigwigs.tsv.gz | tail -n +2 | awk -v s="$study" '$2 == s {print $3}'); do
+    for url in $(zcat ../data/tcga/bigwig/bigwigs.tsv.gz | tail -n +2 | awk -v s="$study" '$2 == s {print $3}'); do
         wget --no-verbose -P "../data/tcga/bigwig/$study" $url
     done
 done

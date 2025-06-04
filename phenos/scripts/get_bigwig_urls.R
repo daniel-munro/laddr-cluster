@@ -36,7 +36,7 @@ samples <- proj_info |>
   select(sample, dataset, url) |>
   arrange(dataset, sample)
 
-write_tsv(samples, "../data/gtex/bigwigs.tsv.gz")
+write_tsv(samples, "../data/gtex/bigwig/bigwigs.tsv.gz")
 
 ##########
 ## TCGA ##
@@ -62,4 +62,4 @@ samples <- proj_info |>
   select(sample, dataset, url) |>
   arrange(dataset, sample)
 
-write_tsv(samples, "../data/tcga/bigwigs.tsv.gz")
+write_tsv(samples, "../data/tcga/bigwig/bigwigs.tsv.gz")
