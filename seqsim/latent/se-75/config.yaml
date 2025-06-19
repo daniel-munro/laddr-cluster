@@ -12,7 +12,7 @@ input:
     ## Path to directory containing bigWig files
     ## If method is "directory", the datasets and samples will be determined by interpreting this directory's contents as {dataset}/{sample}.bw
     ## If method is "manifest", the paths in the manifest file should be relative to this directory.
-    directory: ../../data/bigwig/se1-50
+    directory: ../../data/bigwig/se-75
     ## If method is "manifest", path to a headerless tab-delimited manifest file with three columns:
     ## dataset, sample, path to bigWig file.
     manifest: coverage_manifest.tsv

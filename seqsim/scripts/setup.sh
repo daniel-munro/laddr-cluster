@@ -29,10 +29,13 @@ for n in 50 75; do
 done
 
 awk '{print $1 "_R1.fastq.gz\t" $1 "_R2.fastq.gz\t" $1}' data/samples.txt > data/fastq/fastq_map.pe.txt
+## Use only R1 or R2 reads as pseudo-single-end:
 awk '{print $1 "_R1.fastq.gz\t" $1}' data/samples.txt > data/fastq/fastq_map.se1.txt
 awk '{print $1 "_R2.fastq.gz\t" $1}' data/samples.txt > data/fastq/fastq_map.se2.txt
+## Use all R1 and R2 reads as pseudo-single-end:
+cat data/fastq/fastq_map.se1.txt data/fastq/fastq_map.se2.txt | sort > data/fastq/fastq_map.se.txt
 
-for sim in pe-50 pe-75 se1-50 se1-75 se2-50 se2-75; do
+for sim in pe-50 pe-75 se-50 se-75 se1-50 se1-75 se2-50 se2-75; do
     rsync -av ~/tools/Pantry/phenotyping/ align/${sim} --exclude input --exclude intermediate --exclude output --exclude .snakemake
 done
 
@@ -44,7 +47,7 @@ done
 ## Latent phenotypes ##
 #######################
 
-for sim in pe-50 pe-75 se1-50 se1-75 se2-50 se2-75; do
+for sim in pe-50 pe-75 se-50 se-75 se1-50 se1-75 se2-50 se2-75; do
     echo $sim
     mkdir -p data/bigwig/${sim}
     while read sample; do
@@ -71,7 +74,7 @@ mkdir -p qtl/input/phenotypes
 
 ## (Edit config)
 
-for sim in pe-50 pe-75 se1-50 se1-75 se2-50 se2-75; do
+for sim in pe-50 pe-75 se-50 se-75 se1-50 se1-75 se2-50 se2-75; do
     echo $sim
     python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
         --type latent \
