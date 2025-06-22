@@ -25,21 +25,25 @@ samples_file: ../data/samples.txt
 ## {modality}.phenotype_groups.txt file in the case of grouped phenotypes.
 ## 'cross_modality' is used to run cross-modality QTL mapping. See phenotyping/scripts/combine_modalities.sh for more details.
 modalities:
-  pe-50:
+  pe-50bp-100pct:
     grouped: true
-  pe-75:
+  pe-75bp-100pct:
     grouped: true
-  se-50:
+  pe-75bp-25pct:
     grouped: true
-  se-75:
+  pe-75bp-50pct:
     grouped: true
-  se1-50:
+  se-50bp-100pct:
     grouped: true
-  se1-75:
+  se-75bp-100pct:
     grouped: true
-  se2-50:
+  se1-50bp-100pct:
     grouped: true
-  se2-75:
+  se1-75bp-100pct:
+    grouped: true
+  se2-50bp-100pct:
+    grouped: true
+  se2-75bp-100pct:
     grouped: true
 
 ### Analyses

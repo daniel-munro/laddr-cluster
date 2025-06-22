@@ -1,0 +1,296 @@
+"""Snakemake pipeline for sequence simulation analysis
+
+Other setup commands:
+
+Create a sample list:
+shuf -n 100 ../../data/geuvadis/samples.txt | sort > data/samples.txt
+
+Initialize Pheast:
+rsync -av ~/tools/Pantry/pheast/ qtl --exclude input --exclude intermediate --exclude output --exclude .snakemake
+mkdir -p qtl/input/{phenotypes_unnorm,phenotypes}
+(Edit config.yaml)
+"""
+
+import numpy as np
+from pathlib import Path
+import csv
+
+ref_genome = Path("../../ref/human/GRCh38_no_alt_analysis_set_GCA_000001405.15.fasta")
+gtf = Path("../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf")
+original_read_length = 75
+
+sims = [
+    "pe-50bp-100pct",
+    "pe-75bp-100pct",
+    "se-50bp-100pct",
+    "se-75bp-100pct",
+    "se1-50bp-100pct",
+    "se1-75bp-100pct",
+    "se2-50bp-100pct",
+    "se2-75bp-100pct",
+    "pe-75bp-50pct",
+    "pe-75bp-25pct",
+]
+
+localrules:
+    init_latent,
+    get_phenotype_groups,
+
+def get_samples():
+    """Load sample list from file"""
+    with open("data/samples.txt", 'r') as f:
+        return [line.strip() for line in f]
+
+rule all:
+    input:
+        expand("data/bigwig/{sim}/{sample}.bw", sim=sims, sample=get_samples()),
+        expand("latent/{sim}", sim=sims),
+        expand("qtl/input/phenotypes/{sim}.bed.gz", sim=sims),
+        expand("qtl/input/phenotypes/{sim}.phenotype_groups.txt", sim=sims),
+
+def get_fastq_files_from_map(wildcards):
+    """Return a tuple (fastq_1, fastq_2) for the given sample from fastq_map.txt."""
+    with open("../../data/geuvadis/fastq_map.txt") as f:
+        reader = csv.reader(f, delimiter='\t')
+        for row in reader:
+            if row[2] == wildcards.sample:
+                fastq_r1 = f"../../data/geuvadis/fastq/{row[0]}"
+                fastq_r2 = f"../../data/geuvadis/fastq/{row[1]}"
+                return fastq_r1, fastq_r2
+    raise ValueError(f"Sample {wildcards.sample} not found in fastq_map.txt")
+
+rule trim_fastq:
+    """Process FASTQ files by trimming to different read lengths"""
+    input:
+        fastq_pair = get_fastq_files_from_map,
+    output:
+        fastq_r1 = "data/fastq/{length}bp-100pct/{sample}_R1.fastq.gz",
+        fastq_r2 = "data/fastq/{length}bp-100pct/{sample}_R2.fastq.gz",
+    params:
+        ntrim=lambda wildcards: original_read_length - int(wildcards.length)
+    shell:
+        """
+        seqtk trimfq -b 0 -e {params.ntrim} {input.fastq_pair[0]} | gzip > {output.fastq_r1}
+        seqtk trimfq -b 0 -e {params.ntrim} {input.fastq_pair[1]} | gzip > {output.fastq_r2}
+        """
+
+rule subsample_fastq:
+    """Subsample FASTQ files to simulate different sequencing depths"""
+    input:
+        fastq_r1 = "data/fastq/{length}bp-100pct/{sample}_R1.fastq.gz",
+        fastq_r2 = "data/fastq/{length}bp-100pct/{sample}_R2.fastq.gz",
+    output:
+        fastq_r1 = "data/fastq/{length}bp-{depth,[0-9][0-9]?}pct/{sample}_R1.fastq.gz",
+        fastq_r2 = "data/fastq/{length}bp-{depth,[0-9][0-9]?}pct/{sample}_R2.fastq.gz",
+    params:
+        seed = 620,
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        total_reads=$(zcat {input.fastq_r1} | wc -l | awk '{{print $1/4}}')
+        reads_to_sample=$(echo "$total_reads * {wildcards.depth} / 100" | bc -l | awk '{{printf "%.0f", $1}}')
+        seqtk sample -s{params.seed} {input.fastq_r1} $reads_to_sample | gzip > {output.fastq_r1}
+        seqtk sample -s{params.seed} {input.fastq_r2} $reads_to_sample | gzip > {output.fastq_r2}
+        """
+
+def genome_size(ref_genome: Path) -> int:
+    """Estimate genome size from a FASTA file."""
+    assert ref_genome.suffix != '.gz', 'Reference genome must be uncompressed'
+    return ref_genome.stat().st_size
+
+rule star_index:
+    """Generate the index for STAR."""
+    input:
+        ref_genome = ref_genome,
+        ref_anno = gtf,
+    output:
+        # Among other generated files:
+        index = "data/bam/reference/star_index_{read_length}/SAindex",
+        chrNameLength = "data/bam/reference/star_index_{read_length}/chrNameLength.txt",
+    params:
+        index_dir = "data/bam/reference/star_index_{read_length}",
+        overhang = lambda w: int(w.read_length) - 1,
+        genomeSAindexNbases = lambda w: int(np.log2(genome_size(ref_genome)) / 2 - 1),
+    conda: "pantry"
+    threads: 16
+    resources:
+        mem_mb = 60000,
+        runtime = '4h',
+    shell:
+        """
+        mkdir -p {params.index_dir}
+        STAR --runMode genomeGenerate \
+            --outTmpDir {params.index_dir}/tmp \
+            --outFileNamePrefix {params.index_dir}/STAR_ \
+            --genomeDir {params.index_dir} \
+            --genomeFastaFiles {input.ref_genome} \
+            --sjdbGTFfile {input.ref_anno} \
+            --sjdbOverhang {params.overhang} \
+            --genomeSAindexNbases {params.genomeSAindexNbases} \
+            --runThreadN {threads}
+        """
+
+def fastq_inputs(wildcards) -> list:
+    """Get the FASTQ file paths for a sample.
+    
+    For paired-end samples, returns a list of two lists of paths. 
+    For single-end samples, returns one list of paths.
+    """
+    read_type = wildcards.type
+    read_length = wildcards.read_length
+    depth = wildcards.depth
+    sample = wildcards.sample_id
+    fastq_dir = f"data/fastq/{read_length}bp-{depth}pct"
+    if read_type in ["pe", "se"]:
+        return [f"{fastq_dir}/{sample}_R1.fastq.gz", f"{fastq_dir}/{sample}_R2.fastq.gz"]
+    elif read_type == "se1":
+        return [f"{fastq_dir}/{sample}_R1.fastq.gz"]
+    elif read_type == "se2":
+        return [f"{fastq_dir}/{sample}_R2.fastq.gz"]
+    else:
+        raise ValueError(f"Invalid read type: {read_type}")
+
+def fastq_star_param(wildcards):
+    """Get a string listing the fastq input files, with two lists if paired_end.
+    
+    This is the string supplied directly to the STAR command.
+    """
+    paths = fastq_inputs(wildcards)
+    if wildcards.type == "pe":
+        return ' '.join((paths[0], paths[1]))
+    elif wildcards.type == "se":
+        return ','.join(paths)
+    else:
+        assert len(paths) == 1
+        return paths[0]
+
+rule star_align:
+    """Align RNA-Seq reads for a sample using STAR."""
+    input:
+        fastq = fastq_inputs,
+        index = "data/bam/reference/star_index_{read_length}/SAindex",
+    output:
+        bam = "data/bam/{type}-{read_length}bp-{depth}pct/{sample_id}.Aligned.sortedByCoord.out.bam",
+    params:
+        fastq_list = fastq_star_param,
+        index_dir = "data/bam/reference/star_index_{read_length}",
+        prefix = "data/bam/{type}-{read_length}bp-{depth}pct/{sample_id}.",
+    conda: "pantry"
+    threads: 16
+    resources:
+        mem_mb = 60000,
+        runtime = '8h',
+    shell:
+        """
+        STAR --runMode alignReads \
+            --genomeDir {params.index_dir} \
+            --readFilesIn {params.fastq_list} \
+            --readFilesCommand 'zcat < ' \
+            --twopassMode Basic \
+            --outSAMstrandField intronMotif \
+            --outSAMtype BAM SortedByCoordinate \
+            --outFileNamePrefix {params.prefix} \
+            --runThreadN {threads}
+        """
+
+rule index_bam:
+    """Index a BAM file."""
+    input:
+        bam = "data/bam/{sim}/{sample_id}.Aligned.sortedByCoord.out.bam",
+    output:
+        bam = "data/bam/{sim}/{sample_id}.Aligned.sortedByCoord.out.bam.bai",
+    conda: "pantry"
+    shell:
+        'samtools index {input}'
+
+rule generate_bigwig:
+    """Generate BigWig files from BAM files"""
+    input:
+        bam = "data/bam/{sim}/{sample_id}.Aligned.sortedByCoord.out.bam",
+        bai = "data/bam/{sim}/{sample_id}.Aligned.sortedByCoord.out.bam.bai",
+    output:
+        bigwig = "data/bigwig/{sim}/{sample_id}.bw",
+    conda: "latent"
+    threads: 16
+    shell:
+        "bamCoverage -b {input.bam} -o {output.bigwig} --binSize 1 -p {threads}"
+
+rule init_latent:
+    """Initialize latent phenotype analysis
+    
+    Afterwards, edit config.yaml, run latent-rna setup, and run latent phenotyping.
+    """
+    input:
+        samples = "data/samples.txt",
+    output:
+        latent_dir = directory("latent/{sim,[^/]+}"),
+    # conda: "latent"
+    shell:
+        """
+        latent-rna init {output.latent_dir} --template snakemake
+        awk -v sim={wildcards.sim} '{{print sim "\t" $1 "\t" $1 ".bw" }}' {input.samples} > {output.latent_dir}/coverage_manifest.tsv
+        ln -s ../../../phenos/gtextcga-full/info {output.latent_dir}/info
+        ln -s ../../../phenos/gtextcga-full/gene_bins {output.latent_dir}/gene_bins
+        ln -s ../../../phenos/gtextcga-full/models {output.latent_dir}/models
+        """
+
+rule assemble_bed:
+    """Convert latent phenotype table to BED file"""
+    input:
+        phenotypes = "latent/{sim}/phenotypes/latent_phenos.{sim}.tsv.gz",
+        ref_anno = gtf,
+    output:
+        bed = "qtl/input/phenotypes_unnorm/{sim}.bed",
+    conda: "pantry"
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        python3 ~/tools/Pantry/phenotyping/scripts/assemble_bed.py \
+            --type latent \
+            --input {input.phenotypes} \
+            --ref_anno {input.ref_anno} \
+            --output {output.bed}
+        """
+
+rule normalize_bed:
+    """Normalize BED file"""
+    input:
+        bed = "qtl/input/phenotypes_unnorm/{sim}.bed",
+    output:
+        bed = "qtl/input/phenotypes/{sim}.bed",
+    conda: "pantry"
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        python3 ~/tools/Pantry/phenotyping/scripts/normalize_phenotypes.py \
+            --input {input.bed} \
+            --output {output.bed}
+        """
+
+rule compress_and_index_bed:
+    """Compress and index BED file"""
+    input:
+        bed = "qtl/input/phenotypes/{sim}.bed",
+    output:
+        bed = "qtl/input/phenotypes/{sim}.bed.gz",
+    conda: "pantry"
+    shell:
+        "bgzip {input.bed} && tabix -p bed {output.bed}"
+
+rule get_phenotype_groups:
+    """Get phenotype groups"""
+    input:
+        bed = "qtl/input/phenotypes/{sim}.bed.gz",
+    output:
+        groups = "qtl/input/phenotypes/{sim}.phenotype_groups.txt",
+    shell:
+        """
+        zcat {input.bed} \
+            | tail -n +2 \
+            | cut -f4 \
+            | awk '{{ g=$1; sub(/__.*$/, "", g); print $1 "\t" g }}' \
+            > {output.groups}
+        """
