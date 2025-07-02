@@ -15,7 +15,7 @@ phenos/*/*
 !phenos/*/Snakefile
 !phenos/scripts/*
 pheast/*/*
-!pheast/*/config.yml
+!pheast/*/config*.yml
 !pheast/scripts/*
 held_out/*/*
 held_out/*/*/*

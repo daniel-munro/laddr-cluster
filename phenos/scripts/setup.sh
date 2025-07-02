@@ -21,11 +21,9 @@ for study in $(zcat ../data/tcga/bigwig/bigwigs.tsv.gz | tail -n +2 | cut -f 2 |
     done
 done
 
-# Initialize project to train models on 5 GTEx tissues and on all tissues, likewise for TCGA
+# Initialize projects to train models on 5 GTEx tissues, all tissues, and all tissues plus TCGA studies
 latent-rna init gtex5-full --template snakemake
 latent-rna init gtex-full --template snakemake
-latent-rna init tcga5-full --template snakemake
-latent-rna init tcga-full --template snakemake
 latent-rna init gtextcga-full --template snakemake
 
 # Create coverage manifest files
@@ -40,20 +38,17 @@ awk 'NR==FNR {tissues[$1]=1; next} $1 in tissues' ../data/gtex/tissues.gtex5.txt
 python scripts/create_coverage_manifest.py \
     -i ../data/tcga/bigwigs.tsv.gz \
     --collection tcga \
-    -o tcga-full/coverage_manifest.tsv
-# Filter tcga-full/coverage_manifest.tsv to get tcga5-full/coverage_manifest.tsv
-awk 'NR==FNR {studies[$1]=1; next} $1 in studies' ../data/tcga/studies.tcga5.txt tcga-full/coverage_manifest.tsv > tcga5-full/coverage_manifest.tsv
+    -o gtextcga-full/coverage_manifest.tcga.tsv
 
 # Combine GTEx and TCGA manifests with appropriate prefixes
 awk 'BEGIN {OFS="\t"} {print $1, $2, "gtex/bigwig/" $3}' gtex-full/coverage_manifest.tsv > gtextcga-full/coverage_manifest.tsv
-awk 'BEGIN {OFS="\t"} {print $1, $2, "tcga/bigwig/" $3}' tcga-full/coverage_manifest.tsv >> gtextcga-full/coverage_manifest.tsv
+awk 'BEGIN {OFS="\t"} {print $1, $2, "tcga/bigwig/" $3}' gtextcga-full/coverage_manifest.tcga.tsv >> gtextcga-full/coverage_manifest.tsv
 
 # (Edit configs)
 
 cd gtex5-full && latent-rna setup && cd ..
 cd gtex-full && latent-rna setup && cd ..
-cd tcga5-full && latent-rna setup && cd ..
-cd tcga-full && latent-rna setup && cd ..
+cd gtextcga-full && latent-rna setup && cd ..
 
 # (Run phenotyping using Snakemake)
 

@@ -7,7 +7,7 @@
 
 import pandas as pd
 
-phenos = pd.read_csv('example_phenos.tsv', sep='\t')
+phenos = pd.read_csv('example_phenos_all.tsv', sep='\t')
 ids = phenos.phenotype_id.tolist()
 genes = phenos.gene_id.unique().tolist()
 trait_gene_pairs = [f'{row["trait"]}-{row["gene_id"]}' for _, row in phenos.iterrows()]

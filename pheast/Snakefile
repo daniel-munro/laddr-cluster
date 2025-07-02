@@ -3,13 +3,13 @@
 # Use GTF without gene ID versions
 ref_anno = '../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf'
 modalities = ['alt_polyA', 'alt_TSS', 'expression', 'isoforms', 'splicing', 'stability']
+file_types = ['bed.gz', 'bed.gz.tbi', 'phenotype_groups.txt']
 
 tissues = {'geuvadis': 'Geuvadis'}
 with open('../data/gtex/tissues.gtex5.txt') as f:
     tissues['gtex5'] = f.read().splitlines()
 with open('../data/gtex/tissues.gtex.txt') as f:
     tissues['gtex'] = f.read().splitlines()
-    # tissues['gtex'] = tissues['gtex5'] # For testing
 
 localrules:
     latent_pheno_groups,
@@ -18,24 +18,16 @@ localrules:
 
 rule all:
     input:
-        expand('geuvadis-{mode}/input/phenotypes/Geuvadis-latent.bed.gz.tbi', mode=['full', 'residual']),
-        expand('geuvadis-{mode}/input/phenotypes/Geuvadis-latent.phenotype_groups.txt', mode=['full', 'residual']),
-        expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_latent.bed.gz.tbi'),
-        'geuvadis-residual/input/phenotypes/Geuvadis-cross_latent.phenotype_groups.txt',
-        expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_pantry.bed.gz.tbi'),
-        'geuvadis-residual/input/phenotypes/Geuvadis-cross_pantry.phenotype_groups.txt',
-        'geuvadislncrna-full/input/phenotypes/Geuvadis-latent.bed.gz.tbi',
-        'geuvadislncrna-full/input/phenotypes/Geuvadis-latent.phenotype_groups.txt',
-        expand('gtex5-full/input/phenotypes/{tissue}-latent.bed.gz.tbi', tissue=tissues['gtex']),
-        expand('gtex5-residual/input/phenotypes/{tissue}-latent.bed.gz.tbi', tissue=tissues['gtex5']),
-        expand('gtex5-residual/input/phenotypes/{tissue}-cross_latent.bed.gz.tbi', tissue=tissues['gtex5']),
-        expand('gtex-full/input/phenotypes/{tissue}-latent.bed.gz.tbi', tissue=tissues['gtex']),
-        expand('gtex-residual/input/phenotypes/{tissue}-latent.bed.gz.tbi', tissue=tissues['gtex']),
-        expand('gtex-residual/input/phenotypes/{tissue}-latent.phenotype_groups.txt', tissue=tissues['gtex']),
-        expand('gtex-residual/input/phenotypes/{tissue}-cross_latent.bed.gz.tbi', tissue=tissues['gtex']),
-        expand('gtex-residual/input/phenotypes/{tissue}-cross_latent.phenotype_groups.txt', tissue=tissues['gtex']),
-        expand('gtextcga-full/input/phenotypes/{tissue}-latent.bed.gz.tbi', tissue=tissues['gtex']),
-        expand('gtextcga-full/input/phenotypes/{tissue}-latent.phenotype_groups.txt', tissue=tissues['gtex']),
+        expand('geuvadis-{mode}/input/phenotypes/Geuvadis-latent.{file_type}', mode=['full', 'residual'], file_type=file_types),
+        expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_latent.{file_type}', file_type=file_types),
+        expand('geuvadis-residual/input/phenotypes/Geuvadis-cross_pantry.{file_type}', file_type=file_types),
+        expand('gtex5-full/input/phenotypes/{tissue}-latent.{file_type}', tissue=tissues['gtex'], file_type=file_types),
+        expand('gtex5-residual/input/phenotypes/{tissue}-latent.{file_type}', tissue=tissues['gtex5'], file_type=file_types),
+        expand('gtex5-residual/input/phenotypes/{tissue}-cross_latent.{file_type}', tissue=tissues['gtex5'], file_type=file_types),
+        expand('gtex-full/input/phenotypes/{tissue}-latent.{file_type}', tissue=tissues['gtex'], file_type=file_types),
+        expand('gtex-residual/input/phenotypes/{tissue}-latent.{file_type}', tissue=tissues['gtex'], file_type=file_types),
+        expand('gtex-residual/input/phenotypes/{tissue}-cross_latent.{file_type}', tissue=tissues['gtex'], file_type=file_types),
+        expand('gtextcga-full/input/phenotypes/{tissue}-latent.{file_type}', tissue=tissues['gtex'], file_type=file_types),
 
 rule assemble_latent_bed:
     """Add gene info to latent phenotypes to generate BED file"""
@@ -64,7 +56,7 @@ rule normalize_latent:
     params:
         bed = '{group}-{mode}/input/phenotypes_original/{tissue}-latent.bed',
     resources:
-        mem_mb = 32000,
+        mem_mb = 48000,
     shell:
         """
         python3 ~/tools/Pantry/phenotyping/scripts/normalize_phenotypes.py \
