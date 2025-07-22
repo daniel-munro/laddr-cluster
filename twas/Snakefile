@@ -21,11 +21,9 @@ localrules:
 rule all:
     input:
         # expand('input/sumstats/{trait}.sumstats', trait=traits),
-        # expand('output/{tissue}/fusion.{tissue}.{trait}.tsv', tissue=tissues, trait=traits),
         expand('output/twas_hits.geuvadis-{mode}-Geuvadis.tsv', mode = ['full', 'residual']),
-        # expand('output/twas_hits.gtex5-full-{tissue}.tsv', tissue=tissues['gtex5']),
         expand('output/twas_hits.gtex-residual-{tissue}.tsv', tissue=tissues['gtex5']),
-        # expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex']),
+        expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex5']),
 
 rule sumstats:
     input:

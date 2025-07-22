@@ -29,13 +29,101 @@ twas_snps: ../../../pantry/GTEx/geno/LD_SNPs.txt
 modalities:
   ADPSBQ-latent:
     grouped: true
+  ADPVSC-latent:
+    grouped: true
+  ADRNLG-latent:
+    grouped: true
   ARTAORT-latent:
+    grouped: true
+  ARTCRN-latent:
+    grouped: true
+  ARTTBL-latent:
+    grouped: true
+  BREAST-latent:
+    grouped: true
+  BRNACC-latent:
+    grouped: true
+  BRNAMY-latent:
+    grouped: true
+  BRNCDT-latent:
+    grouped: true
+  BRNCHA-latent:
+    grouped: true
+  BRNCHB-latent:
+    grouped: true
+  BRNCTXA-latent:
     grouped: true
   BRNCTXB-latent:
     grouped: true
+  BRNHPP-latent:
+    grouped: true
+  BRNHPT-latent:
+    grouped: true
+  BRNNCC-latent:
+    grouped: true
+  BRNPTM-latent:
+    grouped: true
+  BRNSNG-latent:
+    grouped: true
+  BRNSPC-latent:
+    grouped: true
+  CLNSGM-latent:
+    grouped: true
+  CLNTRN-latent:
+    grouped: true
   ESPGEJ-latent:
     grouped: true
+  ESPMCS-latent:
+    grouped: true
+  ESPMSL-latent:
+    grouped: true
+  FIBRBLS-latent:
+    grouped: true
+  HRTAA-latent:
+    grouped: true
+  HRTLV-latent:
+    grouped: true
+  KDNCTX-latent:
+    grouped: true
+  LCL-latent:
+    grouped: true
+  LIVER-latent:
+    grouped: true
+  LUNG-latent:
+    grouped: true
+  MSCLSK-latent:
+    grouped: true
+  NERVET-latent:
+    grouped: true
+  OVARY-latent:
+    grouped: true
+  PNCREAS-latent:
+    grouped: true
+  PRSTTE-latent:
+    grouped: true
+  PTTARY-latent:
+    grouped: true
+  SKINNS-latent:
+    grouped: true
   SKINS-latent:
+    grouped: true
+  SLVRYG-latent:
+    grouped: true
+  SNTTRM-latent:
+    grouped: true
+  SPLEEN-latent:
+    grouped: true
+  STMACH-latent:
+    grouped: true
+  TESTIS-latent:
+    grouped: true
+  THYROID-latent:
+    grouped: true
+  UTERUS-latent:
+    grouped: true
+  VAGINA-latent:
+    grouped: true
+  WHLBLD-latent:
     grouped: true
 
 ## Analyses
