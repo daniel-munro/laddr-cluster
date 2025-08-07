@@ -13,7 +13,6 @@ with open('../data/gtex/tissues.gtex5.txt') as f:
     tissues['gtex5'] = f.read().splitlines()
 with open('../data/gtex/tissues.gtex.txt') as f:
     tissues['gtex'] = f.read().splitlines()
-    tissues['gtex'] = tissues['gtex5'] # For testing
 
 localrules:
     sumstats,
@@ -23,7 +22,7 @@ rule all:
         # expand('input/sumstats/{trait}.sumstats', trait=traits),
         expand('output/twas_hits.geuvadis-{mode}-Geuvadis.tsv', mode = ['full', 'residual']),
         expand('output/twas_hits.gtex-residual-{tissue}.tsv', tissue=tissues['gtex5']),
-        expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex5']),
+        expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex']),
 
 rule sumstats:
     input:

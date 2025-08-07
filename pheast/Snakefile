@@ -84,7 +84,7 @@ rule combine_modalities_gtex:
     """Combine latent and Pantry phenotypes"""
     input:
         latent_bed = '{group}-residual/input/phenotypes_original/{tissue}-latent.bed.gz',
-        pantry_beds = expand('../data/gtex/pantry_phenos/{{tissue}}/{modality}.bed.gz', modality = modalities),
+        pantry_beds = expand('../../pantry/phenos/{{tissue}}/output/{modality}.bed.gz', modality = modalities),
     output:
         bed = '{group,gtex.*}-residual/input/phenotypes_original/{tissue}-cross_latent.bed.gz',
         groups = '{group,gtex.*}-residual/input/phenotypes_original/{tissue}-cross_latent.phenotype_groups.txt',
@@ -98,7 +98,7 @@ rule combine_modalities_gtex:
         mkdir {params.tmp_dir}/output
         ln -s ../../{wildcards.tissue}-latent.bed.gz {params.tmp_dir}/output/latent_residual.bed.gz
         for modality in {params.modalities}; do
-            ln -s ../../../../../../data/gtex/pantry_phenos/{wildcards.tissue}/$modality.bed.gz {params.tmp_dir}/output/$modality.bed.gz
+            ln -s ../../../../../../../pantry/phenos/{wildcards.tissue}/output/$modality.bed.gz {params.tmp_dir}/output/$modality.bed.gz
         done
         cd {params.tmp_dir}
         bash ~/tools/Pantry/phenotyping/scripts/combine_modalities.sh \
@@ -210,7 +210,7 @@ rule prepare_phenotypes_gtex_residual:
         tmp_out_dir = '{group}-residual/input/phenotypes_original/tmp_out_{tissue}',
         pheno_dir = '{group}-residual/input/phenotypes',
     resources:
-        mem_mb = 32000,
+        mem_mb = 64000,
     shell:
         """
         mkdir {params.tmp_in_dir}
