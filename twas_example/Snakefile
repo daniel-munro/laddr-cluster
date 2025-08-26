@@ -10,9 +10,11 @@ import pandas as pd
 phenos = pd.read_csv('example_phenos_all.tsv', sep='\t')
 ids = phenos.phenotype_id.tolist()
 genes = phenos.gene_id.unique().tolist()
+gene_tissue_pairs = [f'{row["gene_id"]}.{row["tissue"]}' for _, row in phenos.iterrows()]
+id_tissue_pairs = [f'{row["phenotype_id"]}.{row["tissue"]}' for _, row in phenos.iterrows()]
 trait_gene_pairs = [f'{row["trait"]}-{row["gene_id"]}' for _, row in phenos.iterrows()]
 
-gene_info = pd.read_csv('../phenos/geuvadis-full/info/genes.tsv', sep='\t')
+gene_info = pd.read_csv('../phenos/gtextcga-full/info/genes.tsv', sep='\t')
 gene_info = gene_info[gene_info.gene_id.isin(genes)]
 
 localrules:
@@ -22,34 +24,33 @@ localrules:
 
 rule all:
     input:
-        expand('model_info/inspect.{gene}.Geuvadis.tsv.gz', gene=genes),
-        expand('weights/{id}.wgt.RDat', id=ids),
+        expand('model_info/inspect.{gene_tissue}.tsv.gz', gene_tissue=gene_tissue_pairs),
+        expand('weights/{pheno_tissue}.wgt.RDat', pheno_tissue=id_tissue_pairs),
         expand('gwas/{trait_gene}.tsv.gz', zip, trait_gene=trait_gene_pairs),
 
 rule get_model_info:
     input:
-        phenos = '../phenos/geuvadis-full/phenotypes/latent_phenos.{dataset}.tsv.gz',
+        phenos = '../phenos/gtextcga-full/phenotypes/latent_phenos.{tissue}.tsv.gz',
     output:
-        tsv = '../phenos/geuvadis-full/inspect/inspect.{gene}.{dataset}.tsv.gz',
+        tsv = '../phenos/gtextcga-full/inspect/inspect.{gene}.{tissue}.tsv.gz',
     params:
-        pheno_dir = '../phenos/geuvadis-full/',
-        dataset = 'Geuvadis',
+        pheno_dir = '../phenos/gtextcga-full/',
     shell:
-        'latent-rna inspect -p {params.pheno_dir} -d {params.dataset} -g {wildcards.gene}'
+        'laddr inspect -p {params.pheno_dir} -d {wildcards.tissue} -g {wildcards.gene}'
 
 rule copy_model_info:
     input:
-        tsv = '../phenos/geuvadis-full/inspect/inspect.{gene}.{dataset}.tsv.gz',
+        tsv = '../phenos/gtextcga-full/inspect/inspect.{gene}.{tissue}.tsv.gz',
     output:
-        tsv = 'model_info/inspect.{gene}.{dataset}.tsv.gz',
+        tsv = 'model_info/inspect.{gene}.{tissue}.tsv.gz',
     shell:
         'cp {input.tsv} {output.tsv}'
 
 rule copy_weights:
     input:
-        wgt = '../pheast/geuvadis-full/intermediate/twas/Geuvadis-latent/{id}.wgt.RDat',
+        wgt = '../pheast/gtextcga-full/intermediate/twas/{tissue}-latent/{id}.wgt.RDat',
     output:
-        wgt = 'weights/{id}.wgt.RDat',
+        wgt = 'weights/{id}.{tissue}.wgt.RDat',
     shell:
         'cp {input.wgt} {output.wgt}'
 
