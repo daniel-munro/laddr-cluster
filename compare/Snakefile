@@ -1,9 +1,9 @@
-"""Compare latent-rna results from different parameter settings"""
+"""Compare LaDDR results from different parameter settings"""
 
 from pathlib import Path
 
 BATCH_FILE = Path(f'trial0/binning-n_4/info/n_batches.txt')
-assert BATCH_FILE.exists(), f'{BATCH_FILE} not found. Run latent-rna setup first.'
+assert BATCH_FILE.exists(), f'{BATCH_FILE} not found. Run laddr setup first.'
 with open(BATCH_FILE, 'r') as f:
     N_BATCHES = int(f.read())
 
@@ -42,11 +42,11 @@ rule all:
         # expand('{trial}/binning-{binning}/gene_bins/batch_{batch}.bed.gz', trial=trials, binning=['n_4'], batch=range(N_BATCHES)),
         # expand('{trial}/binning-{binning}/covg_norm/Geuvadis/batch_{batch}.npy', trial=trials, binning=['n_4'], batch=range(N_BATCHES)),
         # expand('{trial}/{param}/models/models_batch_{batch}.pickle', trial=trials, param=['binning-n_4'], batch=range(N_BATCHES)),
-        # expand('{trial}/binning-{binning}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, binning=binnings),
+        expand('{trial}/binning-{binning}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, binning=binnings),
         # expand('{trial}/{param}/phenotypes/latent_phenos.Geuvadis.tsv.gz', trial=trials, param=params),
         # expand('{trial}/qtl/latent-{param}.bed.gz', trial=trials, param=params),
         # expand('{trial}/qtl/latent-{param}.cis_independent_qtl.txt.gz', trial=trials, param=params),
-        'bin_pheno_qtl_counts.tsv',
+        # 'bin_pheno_qtl_counts.tsv',
 
 rule latent_rna_binning:
     """Divide gene features into bins"""
@@ -60,10 +60,10 @@ rule latent_rna_binning:
         project_dir = '{trial}/{param}',
     resources:
         mem_mb = 32000,
-        runtime = '8h',
+        runtime = '24h',
     shell:
         """
-        latent-rna binning -p {params.project_dir} -b {wildcards.batch}
+        laddr binning -p {params.project_dir} -b {wildcards.batch}
         """
 
 rule latent_rna_coverage:
@@ -79,10 +79,10 @@ rule latent_rna_coverage:
         project_dir = '{trial}/{param}',
     resources:
         mem_mb = 32000,
-        runtime = '16h',
+        runtime = '24h',
     shell:
         """
-        latent-rna coverage -p {params.project_dir} -b {wildcards.batch}
+        laddr coverage -p {params.project_dir} -b {wildcards.batch}
         """
 
 rule latent_rna_fit:
@@ -98,7 +98,7 @@ rule latent_rna_fit:
         mem_mb = 16000,
     shell:
         """
-        latent-rna fit -p {params.project_dir} -b {wildcards.batch}
+        laddr fit -p {params.project_dir} -b {wildcards.batch}
         """
 
 rule latent_rna_transform:
@@ -113,7 +113,7 @@ rule latent_rna_transform:
         project_dir = '{trial}/{param}',
     shell:
         """
-        latent-rna transform -p {params.project_dir}
+        laddr transform -p {params.project_dir}
         """
 
 ##################################
