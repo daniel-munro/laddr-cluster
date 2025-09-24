@@ -6,7 +6,7 @@ configfile: 'config.yaml'
 working_dir = Path('.')
 
 BATCH_FILE = working_dir / 'info' / 'n_batches.txt'
-assert BATCH_FILE.exists(), f'{BATCH_FILE} not found. Run latent-rna setup first.'
+assert BATCH_FILE.exists(), f'{BATCH_FILE} not found. Run laddr setup first.'
 with open(BATCH_FILE, 'r') as f:
     N_BATCHES = int(f.read())
 
@@ -35,7 +35,7 @@ rule all:
         expand(working_dir / 'phenotypes' /'latent_phenos.{dataset}.tsv.gz', dataset=datasets),
         # expand(working_dir / 'inspect' / 'inspect.{gene_id}.{dataset}.tsv.gz', gene_id=['ENSG00000008128'], dataset=datasets),
 
-# rule latent_rna_binning:
+# rule laddr_binning:
 #     """Divide gene features into bins"""
 #     input:
 #         genes = working_dir / 'info' / 'genes.tsv',
@@ -49,10 +49,10 @@ rule all:
 #         runtime = '12h',
 #     shell:
 #         """
-#         latent-rna binning -b {wildcards.batch}
+#         laddr binning -b {wildcards.batch}
 #         """
 
-rule latent_rna_coverage:
+rule laddr_coverage:
     """Assemble coverage across samples, normalize, regress out explicit phenotypes, and bin into batches for PCA"""
     input:
         bw = lambda w: sample_table.loc[sample_table['dataset'] == w.dataset, 'path'].tolist(),
@@ -67,10 +67,10 @@ rule latent_rna_coverage:
         runtime = '12h',
     shell:
         """
-        latent-rna coverage -d {wildcards.dataset} -b {wildcards.batch}
+        laddr coverage -d {wildcards.dataset} -b {wildcards.batch}
         """
 
-rule latent_rna_fit:
+rule laddr_fit:
     """Fit models to latent features"""
     input:
         covg_norm = expand(str(working_dir / 'covg_norm' / '{dataset}' / 'batch_{{batch}}.npy'), dataset=datasets),
@@ -79,10 +79,10 @@ rule latent_rna_fit:
         models = working_dir / 'models' / 'models_batch_{batch}.pickle',
     shell:
         """
-        latent-rna fit -b {wildcards.batch}
+        laddr fit -b {wildcards.batch}
         """
 
-rule latent_rna_transform:
+rule laddr_transform:
     """Apply models to generate latent phenotypes"""
     input:
         covg_norm = expand(str(working_dir / 'covg_norm' / '{{dataset}}' / 'batch_{batch}.npy'), batch=range(N_BATCHES)),
@@ -92,10 +92,10 @@ rule latent_rna_transform:
         phenos = working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz',
     shell:
         """
-        latent-rna transform -d {wildcards.dataset}
+        laddr transform -d {wildcards.dataset}
         """
 
-rule latent_rna_inspect:
+rule laddr_inspect:
     """Extract model data for visualization"""
     input:
         genes = working_dir / 'info' / 'genes.tsv',
@@ -107,5 +107,5 @@ rule latent_rna_inspect:
         inspect = working_dir / 'inspect' / 'inspect.{gene_id}.{dataset}.tsv.gz',
     shell:
         """
-        latent-rna inspect -g {wildcards.gene_id} -d {wildcards.dataset}
+        laddr inspect -g {wildcards.gene_id} -d {wildcards.dataset}
         """
