@@ -21,8 +21,8 @@ rule all:
     input:
         # expand('input/sumstats/{trait}.sumstats', trait=traits),
         expand('output/twas_hits.geuvadis-{mode}-Geuvadis.tsv', mode = ['full', 'residual']),
-        expand('output/twas_hits.gtex-residual-{tissue}.tsv', tissue=tissues['gtex']),
-        expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex']),
+        expand('output/twas_hits.gtex-residual-{tissue}.tsv', tissue=tissues['gtex'] + ['Geuvadis']),
+        expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex'] + ['Geuvadis']),
 
 rule sumstats:
     input:
@@ -38,17 +38,33 @@ rule sumstats:
         zcat {input.gwas} | tail -n+2 | cut -f2,5,6,10 >> {output.sumstats}
         """
 
+def pos_file(w):
+    group, mode, tissue = w.group_tissue.split('-')
+    if tissue == 'Geuvadis':
+        return f'../pheast/geuvadis/intermediate/twas/{group}-{mode}-Geuvadis-latent.pos'
+    else:
+        return f'../pheast/{group}-{mode}/intermediate/twas/{tissue}-latent.pos'
+
+def weights_dir(w):
+    group, mode, tissue = w.group_tissue.split('-')
+    if tissue == 'Geuvadis':
+        return f'../pheast/geuvadis/intermediate/twas'
+    else:
+        return f'../pheast/{group}-{mode}/intermediate/twas'
+
 rule assoc_test_trait:
     """Run all chromosomes for a trait together"""
     input:
         sumstats = 'input/sumstats/{trait}.sumstats',
-        weights = '../pheast/{group}-{mode}/intermediate/twas/{tissue}-latent.pos',
+        # weights = '../pheast/{group}/intermediate/twas/{tissue}-latent.pos',
+        weights = pos_file,
         ref_ld_chr = expand('input/LDREF_b38ids_chr/1000G.EUR.{chrom}.{ext}', chrom=chroms, ext=['bed', 'bim', 'fam']),
     output:
-        expand('intermediate/{{group}}-{{mode}}-{{tissue}}/{{trait}}/{{trait}}.{chrom}.tsv', chrom=chroms)
+        expand('intermediate/{{group_tissue}}/{{trait}}/{{trait}}.{chrom}.tsv', chrom=chroms)
     params:
-        output_dir = 'intermediate/{group}-{mode}-{tissue}/{trait}',
-        weights_dir = '../pheast/{group}-{mode}/intermediate/twas',
+        output_dir = 'intermediate/{group_tissue}/{trait}',
+        # weights_dir = '../pheast/{group}/intermediate/twas',
+        weights_dir = weights_dir,
         ref_ld_prefix = 'input/LDREF_b38ids_chr/1000G.EUR.',
         chroms = chroms,
         coloc_p = '5e-8', # Hits with p below this are tested for coloc, recommended to be TWAS threshold or higher.
@@ -75,11 +91,11 @@ rule assoc_test_trait:
 
 rule assemble_assoc_tests:
     input:
-        expand('intermediate/{{tissue}}/{{trait}}/{{trait}}.{chrom}.tsv', chrom=chroms)
+        expand('intermediate/{{group_tissue}}/{{trait}}/{{trait}}.{chrom}.tsv', chrom=chroms)
     output:
-        out = 'output/{tissue}/fusion.{tissue}.{trait}.tsv'
+        out = 'output/{group_tissue}/fusion.{group_tissue}.{trait}.tsv'
     params:
-        output_dir = 'output/{tissue}',
+        output_dir = 'output/{group_tissue}',
     group: 'twas'
     shell:
         """
@@ -92,9 +108,9 @@ rule assemble_assoc_tests:
 
 rule assemble_hits_all_traits:
     input:
-        fusion = expand('output/{{tissue}}/fusion.{{tissue}}.{trait}.tsv', trait=traits)
+        fusion = expand('output/{{group_tissue}}/fusion.{{group_tissue}}.{trait}.tsv', trait=traits)
     output:
-        out = 'output/twas_hits.{tissue}.tsv'
+        out = 'output/twas_hits.{group_tissue}.tsv'
     params:
         traits = ' '.join(traits),
     shell:
@@ -103,7 +119,7 @@ rule assemble_hits_all_traits:
             | sed 's/^/TRAIT\t/' \
             > {output.out}
         for trait in {params.traits}; do
-            tail -n+2 output/{wildcards.tissue}/fusion.{wildcards.tissue}.$trait.tsv \
+            tail -n+2 output/{wildcards.group_tissue}/fusion.{wildcards.group_tissue}.$trait.tsv \
                 | awk '$18 < 5e-8' \
                 | sed "s/^/$trait\t/" \
                 >> {output.out}

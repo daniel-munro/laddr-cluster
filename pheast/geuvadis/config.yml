@@ -25,8 +25,20 @@ twas_snps: ../../../pantry/GTEx/geno/LD_SNPs.txt
 # {modality}.phenotype_groups.txt file in the case of grouped phenotypes.
 # 'cross_modality' is used to run cross-modality QTL mapping. See Project/scripts/combine_modalities.sh for more details.
 modalities:
-  Geuvadis-latent:
+  geuvadis-full-Geuvadis-latent:
     grouped: true
+  geuvadis-residual-Geuvadis-latent:
+    grouped: true
+  # geuvadis-residual-Geuvadis-cross_latent:
+  #   grouped: true
+  gtextcga-full-Geuvadis-latent:
+    grouped: true
+  gtex-residual-Geuvadis-latent:
+    grouped: true
+  # gtex-residual-Geuvadis-cross_latent:
+  #   grouped: true
+  # pantry-Geuvadis-cross_pantry:
+  #   grouped: true
 
 ## Analyses
 # List the analyses to run. A snakefile will be loaded for each analysis,
