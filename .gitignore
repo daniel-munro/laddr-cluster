@@ -36,6 +36,8 @@ recount3/brain-blood/*
 !recount3/brain-blood/config.yaml
 !recount3/brain-blood/coverage_manifest.tsv
 !recount3/brain-blood/Snakefile
+repo/repo
+!repo/repo/check_repo.py
 residual/*/*
 residual/*/*/*
 !residual/*/config.yaml
@@ -51,6 +53,7 @@ seqsim/latent/*/*
 seqsim/qtl/*
 !seqsim/qtl/config.yml
 twas/*
+!twas/scripts
 !twas/Snakefile
 twas_example/gwas
 twas_example/model_info

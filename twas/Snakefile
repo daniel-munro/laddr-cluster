@@ -23,6 +23,7 @@ rule all:
         expand('output/twas_hits.geuvadis-{mode}-Geuvadis.tsv', mode = ['full', 'residual']),
         expand('output/twas_hits.gtex-residual-{tissue}.tsv', tissue=tissues['gtex'] + ['Geuvadis']),
         expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex'] + ['Geuvadis']),
+        'output/trait_corrs.gtextcga-full.tsv',
 
 rule sumstats:
     input:
@@ -125,3 +126,11 @@ rule assemble_hits_all_traits:
                 >> {output.out}
         done
         """
+
+rule trait_corrs:
+    input:
+        # twas_out = expand('output/gtextcga-full-{tissue}/fusion.gtextcga-full-{tissue}.{trait}.tsv', tissue=tissues['gtex'], trait=traits)
+    output:
+        out = 'output/trait_corrs.gtextcga-full.tsv'
+    shell:
+        "python3 scripts/trait_corrs.py --out {output.out}"

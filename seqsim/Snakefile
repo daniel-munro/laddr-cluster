@@ -19,6 +19,9 @@ ref_genome = Path("../../ref/human/GRCh38_no_alt_analysis_set_GCA_000001405.15.f
 gtf = Path("../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf")
 original_read_length = 75
 
+with open("data/samples.txt", 'r') as f:
+    samples = [line.strip() for line in f]
+
 sims = [
     "pe-50bp-100pct",
     "pe-75bp-100pct",
@@ -36,17 +39,13 @@ localrules:
     init_latent,
     get_phenotype_groups,
 
-def get_samples():
-    """Load sample list from file"""
-    with open("data/samples.txt", 'r') as f:
-        return [line.strip() for line in f]
-
 rule all:
     input:
-        expand("data/bigwig/{sim}/{sample}.bw", sim=sims, sample=get_samples()),
+        expand("data/bigwig/{sim}/{sample}.bw", sim=sims, sample=samples),
         expand("latent/{sim}", sim=sims),
         expand("qtl/input/phenotypes/{sim}.bed.gz", sim=sims),
         expand("qtl/input/phenotypes/{sim}.phenotype_groups.txt", sim=sims),
+        "data/read_counts.tsv",
 
 def get_fastq_files_from_map(wildcards):
     """Return a tuple (fastq_1, fastq_2) for the given sample from fastq_map.txt."""
@@ -92,6 +91,23 @@ rule subsample_fastq:
         reads_to_sample=$(echo "$total_reads * {wildcards.depth} / 100" | bc -l | awk '{{printf "%.0f", $1}}')
         seqtk sample -s{params.seed} {input.fastq_r1} $reads_to_sample | gzip > {output.fastq_r1}
         seqtk sample -s{params.seed} {input.fastq_r2} $reads_to_sample | gzip > {output.fastq_r2}
+        """
+
+rule count_read_pairs_75bp:
+    """Count number of reads per sample and write a TSV summary"""
+    input:
+        r1 = expand("data/fastq/75bp-100pct/{sample}_R1.fastq.gz", sample=samples)
+    output:
+        tsv = "data/read_counts.tsv"
+    shell:
+        """
+        echo -e "sample\treads" > {output.tsv}
+        for f in {input.r1}; do
+            sample=$(basename "$f" | sed 's/_R1.fastq.gz//')
+            nlines=$(zcat "$f" | wc -l)
+            reads=$((nlines / 4))
+            echo -e "$sample\t$reads" >> {output.tsv}
+        done
         """
 
 def genome_size(ref_genome: Path) -> int:
