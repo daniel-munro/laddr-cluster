@@ -1,0 +1,626 @@
+repo
+├── check_repo.py
+├── covariates
+│   ├── ddp-ADPSBQ.covar.plink.tsv
+│   ├── ddp-ADPSBQ.covar.tsv
+│   ├── ddp-ADPVSC.covar.plink.tsv
+│   ├── ddp-ADPVSC.covar.tsv
+│   ├── ddp-ADRNLG.covar.plink.tsv
+│   ├── ddp-ADRNLG.covar.tsv
+│   ├── ddp-ARTAORT.covar.plink.tsv
+│   ├── ddp-ARTAORT.covar.tsv
+│   ├── ddp-ARTCRN.covar.plink.tsv
+│   ├── ddp-ARTCRN.covar.tsv
+│   ├── ddp-ARTTBL.covar.plink.tsv
+│   ├── ddp-ARTTBL.covar.tsv
+│   ├── ddp-BREAST.covar.plink.tsv
+│   ├── ddp-BREAST.covar.tsv
+│   ├── ddp-BRNACC.covar.plink.tsv
+│   ├── ddp-BRNACC.covar.tsv
+│   ├── ddp-BRNAMY.covar.plink.tsv
+│   ├── ddp-BRNAMY.covar.tsv
+│   ├── ddp-BRNCDT.covar.plink.tsv
+│   ├── ddp-BRNCDT.covar.tsv
+│   ├── ddp-BRNCHA.covar.plink.tsv
+│   ├── ddp-BRNCHA.covar.tsv
+│   ├── ddp-BRNCHB.covar.plink.tsv
+│   ├── ddp-BRNCHB.covar.tsv
+│   ├── ddp-BRNCTXA.covar.plink.tsv
+│   ├── ddp-BRNCTXA.covar.tsv
+│   ├── ddp-BRNCTXB.covar.plink.tsv
+│   ├── ddp-BRNCTXB.covar.tsv
+│   ├── ddp-BRNHPP.covar.plink.tsv
+│   ├── ddp-BRNHPP.covar.tsv
+│   ├── ddp-BRNHPT.covar.plink.tsv
+│   ├── ddp-BRNHPT.covar.tsv
+│   ├── ddp-BRNNCC.covar.plink.tsv
+│   ├── ddp-BRNNCC.covar.tsv
+│   ├── ddp-BRNPTM.covar.plink.tsv
+│   ├── ddp-BRNPTM.covar.tsv
+│   ├── ddp-BRNSNG.covar.plink.tsv
+│   ├── ddp-BRNSNG.covar.tsv
+│   ├── ddp-BRNSPC.covar.plink.tsv
+│   ├── ddp-BRNSPC.covar.tsv
+│   ├── ddp-CLNSGM.covar.plink.tsv
+│   ├── ddp-CLNSGM.covar.tsv
+│   ├── ddp-CLNTRN.covar.plink.tsv
+│   ├── ddp-CLNTRN.covar.tsv
+│   ├── ddp-ESPGEJ.covar.plink.tsv
+│   ├── ddp-ESPGEJ.covar.tsv
+│   ├── ddp-ESPMCS.covar.plink.tsv
+│   ├── ddp-ESPMCS.covar.tsv
+│   ├── ddp-ESPMSL.covar.plink.tsv
+│   ├── ddp-ESPMSL.covar.tsv
+│   ├── ddp-FIBRBLS.covar.plink.tsv
+│   ├── ddp-FIBRBLS.covar.tsv
+│   ├── ddp-HRTAA.covar.plink.tsv
+│   ├── ddp-HRTAA.covar.tsv
+│   ├── ddp-HRTLV.covar.plink.tsv
+│   ├── ddp-HRTLV.covar.tsv
+│   ├── ddp-KDNCTX.covar.plink.tsv
+│   ├── ddp-KDNCTX.covar.tsv
+│   ├── ddp-LCL.covar.plink.tsv
+│   ├── ddp-LCL.covar.tsv
+│   ├── ddp-LIVER.covar.plink.tsv
+│   ├── ddp-LIVER.covar.tsv
+│   ├── ddp-LUNG.covar.plink.tsv
+│   ├── ddp-LUNG.covar.tsv
+│   ├── ddp-MSCLSK.covar.plink.tsv
+│   ├── ddp-MSCLSK.covar.tsv
+│   ├── ddp-NERVET.covar.plink.tsv
+│   ├── ddp-NERVET.covar.tsv
+│   ├── ddp-OVARY.covar.plink.tsv
+│   ├── ddp-OVARY.covar.tsv
+│   ├── ddp-PNCREAS.covar.plink.tsv
+│   ├── ddp-PNCREAS.covar.tsv
+│   ├── ddp-PRSTTE.covar.plink.tsv
+│   ├── ddp-PRSTTE.covar.tsv
+│   ├── ddp-PTTARY.covar.plink.tsv
+│   ├── ddp-PTTARY.covar.tsv
+│   ├── ddp-SKINNS.covar.plink.tsv
+│   ├── ddp-SKINNS.covar.tsv
+│   ├── ddp-SKINS.covar.plink.tsv
+│   ├── ddp-SKINS.covar.tsv
+│   ├── ddp-SLVRYG.covar.plink.tsv
+│   ├── ddp-SLVRYG.covar.tsv
+│   ├── ddp-SNTTRM.covar.plink.tsv
+│   ├── ddp-SNTTRM.covar.tsv
+│   ├── ddp-SPLEEN.covar.plink.tsv
+│   ├── ddp-SPLEEN.covar.tsv
+│   ├── ddp-STMACH.covar.plink.tsv
+│   ├── ddp-STMACH.covar.tsv
+│   ├── ddp-TESTIS.covar.plink.tsv
+│   ├── ddp-TESTIS.covar.tsv
+│   ├── ddp-THYROID.covar.plink.tsv
+│   ├── ddp-THYROID.covar.tsv
+│   ├── ddp-UTERUS.covar.plink.tsv
+│   ├── ddp-UTERUS.covar.tsv
+│   ├── ddp-VAGINA.covar.plink.tsv
+│   ├── ddp-VAGINA.covar.tsv
+│   ├── ddp-WHLBLD.covar.plink.tsv
+│   ├── ddp-WHLBLD.covar.tsv
+│   ├── hybrid-ADPSBQ.covar.tsv
+│   ├── hybrid-ADPVSC.covar.tsv
+│   ├── hybrid-ADRNLG.covar.tsv
+│   ├── hybrid-ARTAORT.covar.tsv
+│   ├── hybrid-ARTCRN.covar.tsv
+│   ├── hybrid-ARTTBL.covar.tsv
+│   ├── hybrid-BREAST.covar.tsv
+│   ├── hybrid-BRNACC.covar.tsv
+│   ├── hybrid-BRNAMY.covar.tsv
+│   ├── hybrid-BRNCDT.covar.tsv
+│   ├── hybrid-BRNCHA.covar.tsv
+│   ├── hybrid-BRNCHB.covar.tsv
+│   ├── hybrid-BRNCTXA.covar.tsv
+│   ├── hybrid-BRNCTXB.covar.tsv
+│   ├── hybrid-BRNHPP.covar.tsv
+│   ├── hybrid-BRNHPT.covar.tsv
+│   ├── hybrid-BRNNCC.covar.tsv
+│   ├── hybrid-BRNPTM.covar.tsv
+│   ├── hybrid-BRNSNG.covar.tsv
+│   ├── hybrid-BRNSPC.covar.tsv
+│   ├── hybrid-CLNSGM.covar.tsv
+│   ├── hybrid-CLNTRN.covar.tsv
+│   ├── hybrid-ESPGEJ.covar.tsv
+│   ├── hybrid-ESPMCS.covar.tsv
+│   ├── hybrid-ESPMSL.covar.tsv
+│   ├── hybrid-FIBRBLS.covar.tsv
+│   ├── hybrid-HRTAA.covar.tsv
+│   ├── hybrid-HRTLV.covar.tsv
+│   ├── hybrid-KDNCTX.covar.tsv
+│   ├── hybrid-LCL.covar.tsv
+│   ├── hybrid-LIVER.covar.tsv
+│   ├── hybrid-LUNG.covar.tsv
+│   ├── hybrid-MSCLSK.covar.tsv
+│   ├── hybrid-NERVET.covar.tsv
+│   ├── hybrid-OVARY.covar.tsv
+│   ├── hybrid-PNCREAS.covar.tsv
+│   ├── hybrid-PRSTTE.covar.tsv
+│   ├── hybrid-PTTARY.covar.tsv
+│   ├── hybrid-SKINNS.covar.tsv
+│   ├── hybrid-SKINS.covar.tsv
+│   ├── hybrid-SLVRYG.covar.tsv
+│   ├── hybrid-SNTTRM.covar.tsv
+│   ├── hybrid-SPLEEN.covar.tsv
+│   ├── hybrid-STMACH.covar.tsv
+│   ├── hybrid-TESTIS.covar.tsv
+│   ├── hybrid-THYROID.covar.tsv
+│   ├── hybrid-UTERUS.covar.tsv
+│   ├── hybrid-VAGINA.covar.tsv
+│   ├── hybrid-WHLBLD.covar.tsv
+│   ├── rddp-ADPSBQ.covar.plink.tsv
+│   ├── rddp-ADPVSC.covar.plink.tsv
+│   ├── rddp-ADRNLG.covar.plink.tsv
+│   ├── rddp-ARTAORT.covar.plink.tsv
+│   ├── rddp-ARTCRN.covar.plink.tsv
+│   ├── rddp-ARTTBL.covar.plink.tsv
+│   ├── rddp-BREAST.covar.plink.tsv
+│   ├── rddp-BRNACC.covar.plink.tsv
+│   ├── rddp-BRNAMY.covar.plink.tsv
+│   ├── rddp-BRNCDT.covar.plink.tsv
+│   ├── rddp-BRNCHA.covar.plink.tsv
+│   ├── rddp-BRNCHB.covar.plink.tsv
+│   ├── rddp-BRNCTXA.covar.plink.tsv
+│   ├── rddp-BRNCTXB.covar.plink.tsv
+│   ├── rddp-BRNHPP.covar.plink.tsv
+│   ├── rddp-BRNHPT.covar.plink.tsv
+│   ├── rddp-BRNNCC.covar.plink.tsv
+│   ├── rddp-BRNPTM.covar.plink.tsv
+│   ├── rddp-BRNSNG.covar.plink.tsv
+│   ├── rddp-BRNSPC.covar.plink.tsv
+│   ├── rddp-CLNSGM.covar.plink.tsv
+│   ├── rddp-CLNTRN.covar.plink.tsv
+│   ├── rddp-ESPGEJ.covar.plink.tsv
+│   ├── rddp-ESPMCS.covar.plink.tsv
+│   ├── rddp-ESPMSL.covar.plink.tsv
+│   ├── rddp-FIBRBLS.covar.plink.tsv
+│   ├── rddp-HRTAA.covar.plink.tsv
+│   ├── rddp-HRTLV.covar.plink.tsv
+│   ├── rddp-KDNCTX.covar.plink.tsv
+│   ├── rddp-LCL.covar.plink.tsv
+│   ├── rddp-LIVER.covar.plink.tsv
+│   ├── rddp-LUNG.covar.plink.tsv
+│   ├── rddp-MSCLSK.covar.plink.tsv
+│   ├── rddp-NERVET.covar.plink.tsv
+│   ├── rddp-OVARY.covar.plink.tsv
+│   ├── rddp-PNCREAS.covar.plink.tsv
+│   ├── rddp-PRSTTE.covar.plink.tsv
+│   ├── rddp-PTTARY.covar.plink.tsv
+│   ├── rddp-SKINNS.covar.plink.tsv
+│   ├── rddp-SKINS.covar.plink.tsv
+│   ├── rddp-SLVRYG.covar.plink.tsv
+│   ├── rddp-SNTTRM.covar.plink.tsv
+│   ├── rddp-SPLEEN.covar.plink.tsv
+│   ├── rddp-STMACH.covar.plink.tsv
+│   ├── rddp-TESTIS.covar.plink.tsv
+│   ├── rddp-THYROID.covar.plink.tsv
+│   ├── rddp-UTERUS.covar.plink.tsv
+│   ├── rddp-VAGINA.covar.plink.tsv
+│   └── rddp-WHLBLD.covar.plink.tsv
+├── geuvadis
+│   ├── ddp-GEUVADIS.bed.gz
+│   ├── ddp-GEUVADIS.cis_independent_qtl.txt.gz
+│   ├── ddp-GEUVADIS.cis_qtl.txt.gz
+│   ├── ddp-GEUVADIS.covar.plink.tsv
+│   ├── ddp-GEUVADIS.covar.tsv
+│   ├── ddp-GEUVADIS.profile
+│   ├── ddp-GEUVADIS.twas_hits.tsv.gz
+│   ├── hybrid-GEUVADIS.cis_independent_qtl.txt.gz
+│   ├── hybrid-GEUVADIS.cis_qtl.txt.gz
+│   ├── hybrid-GEUVADIS.covar.tsv
+│   ├── qtls.geuvadis-ddp_hybrid_kdp.tsv.gz
+│   ├── rddp-GEUVADIS.bed.gz
+│   ├── rddp-GEUVADIS.covar.plink.tsv
+│   ├── rddp-GEUVADIS.profile
+│   └── rddp-GEUVADIS.twas_hits.tsv.gz
+├── info
+│   ├── gwas_metadata.txt
+│   ├── LDREF_b38ids_chr.tar.bz2
+│   ├── pcg_and_lncrna.tsv
+│   └── tissues-gtex.txt
+├── laddr_models
+│   ├── info_and_bins.tar.bz2
+│   ├── models-ddp.tar.bz2
+│   └── models-rddp.tar.bz2
+├── qtls
+│   ├── ddp-ADPSBQ.cis_independent_qtl.txt.gz
+│   ├── ddp-ADPSBQ.cis_qtl.txt.gz
+│   ├── ddp-ADPVSC.cis_independent_qtl.txt.gz
+│   ├── ddp-ADPVSC.cis_qtl.txt.gz
+│   ├── ddp-ADRNLG.cis_independent_qtl.txt.gz
+│   ├── ddp-ADRNLG.cis_qtl.txt.gz
+│   ├── ddp-ARTAORT.cis_independent_qtl.txt.gz
+│   ├── ddp-ARTAORT.cis_qtl.txt.gz
+│   ├── ddp-ARTCRN.cis_independent_qtl.txt.gz
+│   ├── ddp-ARTCRN.cis_qtl.txt.gz
+│   ├── ddp-ARTTBL.cis_independent_qtl.txt.gz
+│   ├── ddp-ARTTBL.cis_qtl.txt.gz
+│   ├── ddp-BREAST.cis_independent_qtl.txt.gz
+│   ├── ddp-BREAST.cis_qtl.txt.gz
+│   ├── ddp-BRNACC.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNACC.cis_qtl.txt.gz
+│   ├── ddp-BRNAMY.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNAMY.cis_qtl.txt.gz
+│   ├── ddp-BRNCDT.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNCDT.cis_qtl.txt.gz
+│   ├── ddp-BRNCHA.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNCHA.cis_qtl.txt.gz
+│   ├── ddp-BRNCHB.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNCHB.cis_qtl.txt.gz
+│   ├── ddp-BRNCTXA.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNCTXA.cis_qtl.txt.gz
+│   ├── ddp-BRNCTXB.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNCTXB.cis_qtl.txt.gz
+│   ├── ddp-BRNHPP.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNHPP.cis_qtl.txt.gz
+│   ├── ddp-BRNHPT.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNHPT.cis_qtl.txt.gz
+│   ├── ddp-BRNNCC.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNNCC.cis_qtl.txt.gz
+│   ├── ddp-BRNPTM.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNPTM.cis_qtl.txt.gz
+│   ├── ddp-BRNSNG.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNSNG.cis_qtl.txt.gz
+│   ├── ddp-BRNSPC.cis_independent_qtl.txt.gz
+│   ├── ddp-BRNSPC.cis_qtl.txt.gz
+│   ├── ddp-CLNSGM.cis_independent_qtl.txt.gz
+│   ├── ddp-CLNSGM.cis_qtl.txt.gz
+│   ├── ddp-CLNTRN.cis_independent_qtl.txt.gz
+│   ├── ddp-CLNTRN.cis_qtl.txt.gz
+│   ├── ddp-ESPGEJ.cis_independent_qtl.txt.gz
+│   ├── ddp-ESPGEJ.cis_qtl.txt.gz
+│   ├── ddp-ESPMCS.cis_independent_qtl.txt.gz
+│   ├── ddp-ESPMCS.cis_qtl.txt.gz
+│   ├── ddp-ESPMSL.cis_independent_qtl.txt.gz
+│   ├── ddp-ESPMSL.cis_qtl.txt.gz
+│   ├── ddp-FIBRBLS.cis_independent_qtl.txt.gz
+│   ├── ddp-FIBRBLS.cis_qtl.txt.gz
+│   ├── ddp-HRTAA.cis_independent_qtl.txt.gz
+│   ├── ddp-HRTAA.cis_qtl.txt.gz
+│   ├── ddp-HRTLV.cis_independent_qtl.txt.gz
+│   ├── ddp-HRTLV.cis_qtl.txt.gz
+│   ├── ddp-KDNCTX.cis_independent_qtl.txt.gz
+│   ├── ddp-KDNCTX.cis_qtl.txt.gz
+│   ├── ddp-LCL.cis_independent_qtl.txt.gz
+│   ├── ddp-LCL.cis_qtl.txt.gz
+│   ├── ddp-LIVER.cis_independent_qtl.txt.gz
+│   ├── ddp-LIVER.cis_qtl.txt.gz
+│   ├── ddp-LUNG.cis_independent_qtl.txt.gz
+│   ├── ddp-LUNG.cis_qtl.txt.gz
+│   ├── ddp-MSCLSK.cis_independent_qtl.txt.gz
+│   ├── ddp-MSCLSK.cis_qtl.txt.gz
+│   ├── ddp-NERVET.cis_independent_qtl.txt.gz
+│   ├── ddp-NERVET.cis_qtl.txt.gz
+│   ├── ddp-OVARY.cis_independent_qtl.txt.gz
+│   ├── ddp-OVARY.cis_qtl.txt.gz
+│   ├── ddp-PNCREAS.cis_independent_qtl.txt.gz
+│   ├── ddp-PNCREAS.cis_qtl.txt.gz
+│   ├── ddp-PRSTTE.cis_independent_qtl.txt.gz
+│   ├── ddp-PRSTTE.cis_qtl.txt.gz
+│   ├── ddp-PTTARY.cis_independent_qtl.txt.gz
+│   ├── ddp-PTTARY.cis_qtl.txt.gz
+│   ├── ddp-SKINNS.cis_independent_qtl.txt.gz
+│   ├── ddp-SKINNS.cis_qtl.txt.gz
+│   ├── ddp-SKINS.cis_independent_qtl.txt.gz
+│   ├── ddp-SKINS.cis_qtl.txt.gz
+│   ├── ddp-SLVRYG.cis_independent_qtl.txt.gz
+│   ├── ddp-SLVRYG.cis_qtl.txt.gz
+│   ├── ddp-SNTTRM.cis_independent_qtl.txt.gz
+│   ├── ddp-SNTTRM.cis_qtl.txt.gz
+│   ├── ddp-SPLEEN.cis_independent_qtl.txt.gz
+│   ├── ddp-SPLEEN.cis_qtl.txt.gz
+│   ├── ddp-STMACH.cis_independent_qtl.txt.gz
+│   ├── ddp-STMACH.cis_qtl.txt.gz
+│   ├── ddp-TESTIS.cis_independent_qtl.txt.gz
+│   ├── ddp-TESTIS.cis_qtl.txt.gz
+│   ├── ddp-THYROID.cis_independent_qtl.txt.gz
+│   ├── ddp-THYROID.cis_qtl.txt.gz
+│   ├── ddp-UTERUS.cis_independent_qtl.txt.gz
+│   ├── ddp-UTERUS.cis_qtl.txt.gz
+│   ├── ddp-VAGINA.cis_independent_qtl.txt.gz
+│   ├── ddp-VAGINA.cis_qtl.txt.gz
+│   ├── ddp-WHLBLD.cis_independent_qtl.txt.gz
+│   ├── ddp-WHLBLD.cis_qtl.txt.gz
+│   ├── hybrid-ADPSBQ.cis_independent_qtl.txt.gz
+│   ├── hybrid-ADPSBQ.cis_qtl.txt.gz
+│   ├── hybrid-ADPVSC.cis_independent_qtl.txt.gz
+│   ├── hybrid-ADPVSC.cis_qtl.txt.gz
+│   ├── hybrid-ADRNLG.cis_independent_qtl.txt.gz
+│   ├── hybrid-ADRNLG.cis_qtl.txt.gz
+│   ├── hybrid-ARTAORT.cis_independent_qtl.txt.gz
+│   ├── hybrid-ARTAORT.cis_qtl.txt.gz
+│   ├── hybrid-ARTCRN.cis_independent_qtl.txt.gz
+│   ├── hybrid-ARTCRN.cis_qtl.txt.gz
+│   ├── hybrid-ARTTBL.cis_independent_qtl.txt.gz
+│   ├── hybrid-ARTTBL.cis_qtl.txt.gz
+│   ├── hybrid-BREAST.cis_independent_qtl.txt.gz
+│   ├── hybrid-BREAST.cis_qtl.txt.gz
+│   ├── hybrid-BRNACC.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNACC.cis_qtl.txt.gz
+│   ├── hybrid-BRNAMY.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNAMY.cis_qtl.txt.gz
+│   ├── hybrid-BRNCDT.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNCDT.cis_qtl.txt.gz
+│   ├── hybrid-BRNCHA.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNCHA.cis_qtl.txt.gz
+│   ├── hybrid-BRNCHB.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNCHB.cis_qtl.txt.gz
+│   ├── hybrid-BRNCTXA.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNCTXA.cis_qtl.txt.gz
+│   ├── hybrid-BRNCTXB.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNCTXB.cis_qtl.txt.gz
+│   ├── hybrid-BRNHPP.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNHPP.cis_qtl.txt.gz
+│   ├── hybrid-BRNHPT.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNHPT.cis_qtl.txt.gz
+│   ├── hybrid-BRNNCC.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNNCC.cis_qtl.txt.gz
+│   ├── hybrid-BRNPTM.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNPTM.cis_qtl.txt.gz
+│   ├── hybrid-BRNSNG.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNSNG.cis_qtl.txt.gz
+│   ├── hybrid-BRNSPC.cis_independent_qtl.txt.gz
+│   ├── hybrid-BRNSPC.cis_qtl.txt.gz
+│   ├── hybrid-CLNSGM.cis_independent_qtl.txt.gz
+│   ├── hybrid-CLNSGM.cis_qtl.txt.gz
+│   ├── hybrid-CLNTRN.cis_independent_qtl.txt.gz
+│   ├── hybrid-CLNTRN.cis_qtl.txt.gz
+│   ├── hybrid-ESPGEJ.cis_independent_qtl.txt.gz
+│   ├── hybrid-ESPGEJ.cis_qtl.txt.gz
+│   ├── hybrid-ESPMCS.cis_independent_qtl.txt.gz
+│   ├── hybrid-ESPMCS.cis_qtl.txt.gz
+│   ├── hybrid-ESPMSL.cis_independent_qtl.txt.gz
+│   ├── hybrid-ESPMSL.cis_qtl.txt.gz
+│   ├── hybrid-FIBRBLS.cis_independent_qtl.txt.gz
+│   ├── hybrid-FIBRBLS.cis_qtl.txt.gz
+│   ├── hybrid-HRTAA.cis_independent_qtl.txt.gz
+│   ├── hybrid-HRTAA.cis_qtl.txt.gz
+│   ├── hybrid-HRTLV.cis_independent_qtl.txt.gz
+│   ├── hybrid-HRTLV.cis_qtl.txt.gz
+│   ├── hybrid-KDNCTX.cis_independent_qtl.txt.gz
+│   ├── hybrid-KDNCTX.cis_qtl.txt.gz
+│   ├── hybrid-LCL.cis_independent_qtl.txt.gz
+│   ├── hybrid-LCL.cis_qtl.txt.gz
+│   ├── hybrid-LIVER.cis_independent_qtl.txt.gz
+│   ├── hybrid-LIVER.cis_qtl.txt.gz
+│   ├── hybrid-LUNG.cis_independent_qtl.txt.gz
+│   ├── hybrid-LUNG.cis_qtl.txt.gz
+│   ├── hybrid-MSCLSK.cis_independent_qtl.txt.gz
+│   ├── hybrid-MSCLSK.cis_qtl.txt.gz
+│   ├── hybrid-NERVET.cis_independent_qtl.txt.gz
+│   ├── hybrid-NERVET.cis_qtl.txt.gz
+│   ├── hybrid-OVARY.cis_independent_qtl.txt.gz
+│   ├── hybrid-OVARY.cis_qtl.txt.gz
+│   ├── hybrid-PNCREAS.cis_independent_qtl.txt.gz
+│   ├── hybrid-PNCREAS.cis_qtl.txt.gz
+│   ├── hybrid-PRSTTE.cis_independent_qtl.txt.gz
+│   ├── hybrid-PRSTTE.cis_qtl.txt.gz
+│   ├── hybrid-PTTARY.cis_independent_qtl.txt.gz
+│   ├── hybrid-PTTARY.cis_qtl.txt.gz
+│   ├── hybrid-SKINNS.cis_independent_qtl.txt.gz
+│   ├── hybrid-SKINNS.cis_qtl.txt.gz
+│   ├── hybrid-SKINS.cis_independent_qtl.txt.gz
+│   ├── hybrid-SKINS.cis_qtl.txt.gz
+│   ├── hybrid-SLVRYG.cis_independent_qtl.txt.gz
+│   ├── hybrid-SLVRYG.cis_qtl.txt.gz
+│   ├── hybrid-SNTTRM.cis_independent_qtl.txt.gz
+│   ├── hybrid-SNTTRM.cis_qtl.txt.gz
+│   ├── hybrid-SPLEEN.cis_independent_qtl.txt.gz
+│   ├── hybrid-SPLEEN.cis_qtl.txt.gz
+│   ├── hybrid-STMACH.cis_independent_qtl.txt.gz
+│   ├── hybrid-STMACH.cis_qtl.txt.gz
+│   ├── hybrid-TESTIS.cis_independent_qtl.txt.gz
+│   ├── hybrid-TESTIS.cis_qtl.txt.gz
+│   ├── hybrid-THYROID.cis_independent_qtl.txt.gz
+│   ├── hybrid-THYROID.cis_qtl.txt.gz
+│   ├── hybrid-UTERUS.cis_independent_qtl.txt.gz
+│   ├── hybrid-UTERUS.cis_qtl.txt.gz
+│   ├── hybrid-VAGINA.cis_independent_qtl.txt.gz
+│   ├── hybrid-VAGINA.cis_qtl.txt.gz
+│   ├── hybrid-WHLBLD.cis_independent_qtl.txt.gz
+│   └── hybrid-WHLBLD.cis_qtl.txt.gz
+├── qtls.gtex-ddp.tsv.gz
+├── qtls.gtex-hybrid.tsv.gz
+├── qtls.gtex-kdp.tsv.gz
+├── rna_phenotypes
+│   ├── ddp-ADPSBQ.bed.gz
+│   ├── ddp-ADPVSC.bed.gz
+│   ├── ddp-ADRNLG.bed.gz
+│   ├── ddp-ARTAORT.bed.gz
+│   ├── ddp-ARTCRN.bed.gz
+│   ├── ddp-ARTTBL.bed.gz
+│   ├── ddp-BREAST.bed.gz
+│   ├── ddp-BRNACC.bed.gz
+│   ├── ddp-BRNAMY.bed.gz
+│   ├── ddp-BRNCDT.bed.gz
+│   ├── ddp-BRNCHA.bed.gz
+│   ├── ddp-BRNCHB.bed.gz
+│   ├── ddp-BRNCTXA.bed.gz
+│   ├── ddp-BRNCTXB.bed.gz
+│   ├── ddp-BRNHPP.bed.gz
+│   ├── ddp-BRNHPT.bed.gz
+│   ├── ddp-BRNNCC.bed.gz
+│   ├── ddp-BRNPTM.bed.gz
+│   ├── ddp-BRNSNG.bed.gz
+│   ├── ddp-BRNSPC.bed.gz
+│   ├── ddp-CLNSGM.bed.gz
+│   ├── ddp-CLNTRN.bed.gz
+│   ├── ddp-ESPGEJ.bed.gz
+│   ├── ddp-ESPMCS.bed.gz
+│   ├── ddp-ESPMSL.bed.gz
+│   ├── ddp-FIBRBLS.bed.gz
+│   ├── ddp-HRTAA.bed.gz
+│   ├── ddp-HRTLV.bed.gz
+│   ├── ddp-KDNCTX.bed.gz
+│   ├── ddp-LCL.bed.gz
+│   ├── ddp-LIVER.bed.gz
+│   ├── ddp-LUNG.bed.gz
+│   ├── ddp-MSCLSK.bed.gz
+│   ├── ddp-NERVET.bed.gz
+│   ├── ddp-OVARY.bed.gz
+│   ├── ddp-PNCREAS.bed.gz
+│   ├── ddp-PRSTTE.bed.gz
+│   ├── ddp-PTTARY.bed.gz
+│   ├── ddp-SKINNS.bed.gz
+│   ├── ddp-SKINS.bed.gz
+│   ├── ddp-SLVRYG.bed.gz
+│   ├── ddp-SNTTRM.bed.gz
+│   ├── ddp-SPLEEN.bed.gz
+│   ├── ddp-STMACH.bed.gz
+│   ├── ddp-TESTIS.bed.gz
+│   ├── ddp-THYROID.bed.gz
+│   ├── ddp-UTERUS.bed.gz
+│   ├── ddp-VAGINA.bed.gz
+│   ├── ddp-WHLBLD.bed.gz
+│   ├── rddp-ADPSBQ.bed.gz
+│   ├── rddp-ADPVSC.bed.gz
+│   ├── rddp-ADRNLG.bed.gz
+│   ├── rddp-ARTAORT.bed.gz
+│   ├── rddp-ARTCRN.bed.gz
+│   ├── rddp-ARTTBL.bed.gz
+│   ├── rddp-BREAST.bed.gz
+│   ├── rddp-BRNACC.bed.gz
+│   ├── rddp-BRNAMY.bed.gz
+│   ├── rddp-BRNCDT.bed.gz
+│   ├── rddp-BRNCHA.bed.gz
+│   ├── rddp-BRNCHB.bed.gz
+│   ├── rddp-BRNCTXA.bed.gz
+│   ├── rddp-BRNCTXB.bed.gz
+│   ├── rddp-BRNHPP.bed.gz
+│   ├── rddp-BRNHPT.bed.gz
+│   ├── rddp-BRNNCC.bed.gz
+│   ├── rddp-BRNPTM.bed.gz
+│   ├── rddp-BRNSNG.bed.gz
+│   ├── rddp-BRNSPC.bed.gz
+│   ├── rddp-CLNSGM.bed.gz
+│   ├── rddp-CLNTRN.bed.gz
+│   ├── rddp-ESPGEJ.bed.gz
+│   ├── rddp-ESPMCS.bed.gz
+│   ├── rddp-ESPMSL.bed.gz
+│   ├── rddp-FIBRBLS.bed.gz
+│   ├── rddp-HRTAA.bed.gz
+│   ├── rddp-HRTLV.bed.gz
+│   ├── rddp-KDNCTX.bed.gz
+│   ├── rddp-LCL.bed.gz
+│   ├── rddp-LIVER.bed.gz
+│   ├── rddp-LUNG.bed.gz
+│   ├── rddp-MSCLSK.bed.gz
+│   ├── rddp-NERVET.bed.gz
+│   ├── rddp-OVARY.bed.gz
+│   ├── rddp-PNCREAS.bed.gz
+│   ├── rddp-PRSTTE.bed.gz
+│   ├── rddp-PTTARY.bed.gz
+│   ├── rddp-SKINNS.bed.gz
+│   ├── rddp-SKINS.bed.gz
+│   ├── rddp-SLVRYG.bed.gz
+│   ├── rddp-SNTTRM.bed.gz
+│   ├── rddp-SPLEEN.bed.gz
+│   ├── rddp-STMACH.bed.gz
+│   ├── rddp-TESTIS.bed.gz
+│   ├── rddp-THYROID.bed.gz
+│   ├── rddp-UTERUS.bed.gz
+│   ├── rddp-VAGINA.bed.gz
+│   └── rddp-WHLBLD.bed.gz
+├── twas_hits.gtex-ddp.tsv.gz
+├── twas_hits.gtex-rddp.tsv.gz
+└── twas_model_summaries
+    ├── ddp-ADPSBQ.profile
+    ├── ddp-ADPVSC.profile
+    ├── ddp-ADRNLG.profile
+    ├── ddp-ARTAORT.profile
+    ├── ddp-ARTCRN.profile
+    ├── ddp-ARTTBL.profile
+    ├── ddp-BREAST.profile
+    ├── ddp-BRNACC.profile
+    ├── ddp-BRNAMY.profile
+    ├── ddp-BRNCDT.profile
+    ├── ddp-BRNCHA.profile
+    ├── ddp-BRNCHB.profile
+    ├── ddp-BRNCTXA.profile
+    ├── ddp-BRNCTXB.profile
+    ├── ddp-BRNHPP.profile
+    ├── ddp-BRNHPT.profile
+    ├── ddp-BRNNCC.profile
+    ├── ddp-BRNPTM.profile
+    ├── ddp-BRNSNG.profile
+    ├── ddp-BRNSPC.profile
+    ├── ddp-CLNSGM.profile
+    ├── ddp-CLNTRN.profile
+    ├── ddp-ESPGEJ.profile
+    ├── ddp-ESPMCS.profile
+    ├── ddp-ESPMSL.profile
+    ├── ddp-FIBRBLS.profile
+    ├── ddp-HRTAA.profile
+    ├── ddp-HRTLV.profile
+    ├── ddp-KDNCTX.profile
+    ├── ddp-LCL.profile
+    ├── ddp-LIVER.profile
+    ├── ddp-LUNG.profile
+    ├── ddp-MSCLSK.profile
+    ├── ddp-NERVET.profile
+    ├── ddp-OVARY.profile
+    ├── ddp-PNCREAS.profile
+    ├── ddp-PRSTTE.profile
+    ├── ddp-PTTARY.profile
+    ├── ddp-SKINNS.profile
+    ├── ddp-SKINS.profile
+    ├── ddp-SLVRYG.profile
+    ├── ddp-SNTTRM.profile
+    ├── ddp-SPLEEN.profile
+    ├── ddp-STMACH.profile
+    ├── ddp-TESTIS.profile
+    ├── ddp-THYROID.profile
+    ├── ddp-UTERUS.profile
+    ├── ddp-VAGINA.profile
+    ├── ddp-WHLBLD.profile
+    ├── rddp-ADPSBQ.profile
+    ├── rddp-ADPVSC.profile
+    ├── rddp-ADRNLG.profile
+    ├── rddp-ARTAORT.profile
+    ├── rddp-ARTCRN.profile
+    ├── rddp-ARTTBL.profile
+    ├── rddp-BREAST.profile
+    ├── rddp-BRNACC.profile
+    ├── rddp-BRNAMY.profile
+    ├── rddp-BRNCDT.profile
+    ├── rddp-BRNCHA.profile
+    ├── rddp-BRNCHB.profile
+    ├── rddp-BRNCTXA.profile
+    ├── rddp-BRNCTXB.profile
+    ├── rddp-BRNHPP.profile
+    ├── rddp-BRNHPT.profile
+    ├── rddp-BRNNCC.profile
+    ├── rddp-BRNPTM.profile
+    ├── rddp-BRNSNG.profile
+    ├── rddp-BRNSPC.profile
+    ├── rddp-CLNSGM.profile
+    ├── rddp-CLNTRN.profile
+    ├── rddp-ESPGEJ.profile
+    ├── rddp-ESPMCS.profile
+    ├── rddp-ESPMSL.profile
+    ├── rddp-FIBRBLS.profile
+    ├── rddp-HRTAA.profile
+    ├── rddp-HRTLV.profile
+    ├── rddp-KDNCTX.profile
+    ├── rddp-LCL.profile
+    ├── rddp-LIVER.profile
+    ├── rddp-LUNG.profile
+    ├── rddp-MSCLSK.profile
+    ├── rddp-NERVET.profile
+    ├── rddp-OVARY.profile
+    ├── rddp-PNCREAS.profile
+    ├── rddp-PRSTTE.profile
+    ├── rddp-PTTARY.profile
+    ├── rddp-SKINNS.profile
+    ├── rddp-SKINS.profile
+    ├── rddp-SLVRYG.profile
+    ├── rddp-SNTTRM.profile
+    ├── rddp-SPLEEN.profile
+    ├── rddp-STMACH.profile
+    ├── rddp-TESTIS.profile
+    ├── rddp-THYROID.profile
+    ├── rddp-UTERUS.profile
+    ├── rddp-VAGINA.profile
+    └── rddp-WHLBLD.profile
+
+7 directories, 616 files

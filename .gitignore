@@ -36,8 +36,9 @@ recount3/brain-blood/*
 !recount3/brain-blood/config.yaml
 !recount3/brain-blood/coverage_manifest.tsv
 !recount3/brain-blood/Snakefile
-repo/repo
+repo/repo/*
 !repo/repo/check_repo.py
+!repo/repo/README.md
 residual/*/*
 residual/*/*/*
 !residual/*/config.yaml
