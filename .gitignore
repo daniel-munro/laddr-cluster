@@ -56,6 +56,7 @@ seqsim/qtl/*
 twas/*
 !twas/scripts
 !twas/Snakefile
+twas_example/cis_nominal
 twas_example/gwas
 twas_example/model_info
 twas_example/weights

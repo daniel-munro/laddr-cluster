@@ -5,6 +5,7 @@
 - GWAS sumstat z-scores within the gene range
 """
 
+import os
 import pandas as pd
 
 phenos = pd.read_csv('example_phenos_all.tsv', sep='\t')
@@ -13,9 +14,14 @@ genes = phenos.gene_id.unique().tolist()
 gene_tissue_pairs = [f'{row["gene_id"]}.{row["tissue"]}' for _, row in phenos.iterrows()]
 id_tissue_pairs = [f'{row["phenotype_id"]}.{row["tissue"]}' for _, row in phenos.iterrows()]
 trait_gene_pairs = [f'{row["trait"]}-{row["gene_id"]}' for _, row in phenos.iterrows()]
+tissues = sorted(phenos.tissue.unique().tolist())
 
 gene_info = pd.read_csv('../phenos/gtextcga-full/info/genes.tsv', sep='\t')
 gene_info = gene_info[gene_info.gene_id.isin(genes)]
+gene_chrom = dict(zip(gene_info.gene_id, gene_info.seqname))
+pheno_chrom = {row.phenotype_id: gene_chrom[row.gene_id] for _, row in phenos.iterrows()}
+tqtl_script = os.path.expanduser('~/tools/Pantry/pheast/scripts/run_tensorqtl.py')
+gtex_geno_prefix = '/data/hps/home/dmunro/gdml/pantry/GTEx/geno/gtex'
 
 localrules:
     copy_model_info,
@@ -27,6 +33,7 @@ rule all:
         expand('model_info/inspect.{gene_tissue}.tsv.gz', gene_tissue=gene_tissue_pairs),
         expand('weights/{pheno_tissue}.wgt.RDat', pheno_tissue=id_tissue_pairs),
         expand('gwas/{trait_gene}.tsv.gz', zip, trait_gene=trait_gene_pairs),
+        expand('cis_nominal/{pheno_tissue}.tsv.gz', pheno_tissue=id_tissue_pairs[-1]),
 
 rule get_model_info:
     input:
@@ -70,3 +77,62 @@ rule gwas_sumstats:
             | gzip -c \
             > {output.tsv}
     """
+
+rule make_pheno_bed:
+    input:
+        bed = '../pheast/gtextcga-full/input/phenotypes/{tissue}-latent.bed.gz',
+        bedi = '../pheast/gtextcga-full/input/phenotypes/{tissue}-latent.bed.gz.tbi',
+    output:
+        bed = 'cis_nominal/phenos/{phenotype_id}.{tissue}.bed.gz',
+        tbi = 'cis_nominal/phenos/{phenotype_id}.{tissue}.bed.gz.tbi',
+    conda: 'pheast'
+    params:
+        phenotype_id = '{phenotype_id}',
+    shell:
+        """
+        mkdir -p cis_nominal/phenos
+        zcat {input.bed} \
+            | awk -v pheno="{params.phenotype_id}" 'NR==1 || $4 == pheno' \
+            | bgzip -c \
+            > {output.bed}
+        tabix -p bed {output.bed}
+        """
+
+rule tensorqtl_cis_nominal:
+    input:
+        geno = multiext(gtex_geno_prefix, '.bed', '.bim', '.fam'),
+        bed = 'cis_nominal/phenos/{phenotype_id}.{tissue}.bed.gz',
+        bedi = 'cis_nominal/phenos/{phenotype_id}.{tissue}.bed.gz.tbi',
+        covar = '../pheast/gtextcga-full/intermediate/covar/{tissue}-latent.covar.tsv',
+    output:
+        nominal = 'cis_nominal/{phenotype_id}.{tissue}/{phenotype_id}.{tissue}.cis_qtl_pairs.chr{chrom}.parquet'
+    params:
+        output_prefix = '{phenotype_id}.{tissue}',
+        output_dir = 'cis_nominal/{phenotype_id}.{tissue}',
+        script = tqtl_script,
+    conda: 'pheast'
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        mkdir -p {params.output_dir}
+        python3 {params.script} \
+            {gtex_geno_prefix} \
+            {input.bed} \
+            {params.output_prefix} \
+            --covariates {input.covar} \
+            --output_dir {params.output_dir} \
+            --mode cis_nominal
+        """
+
+rule extract_cis_nominal_pheno:
+    input:
+        nominal = lambda w: f'cis_nominal/{w.phenotype_id}.{w.tissue}/{w.phenotype_id}.{w.tissue}.cis_qtl_pairs.{pheno_chrom[w.phenotype_id]}.parquet',
+    output:
+        tsv = 'cis_nominal/{phenotype_id}.{tissue}.tsv.gz',
+    run:
+        from fastparquet import ParquetFile
+
+        df = ParquetFile(input.nominal).to_pandas()
+        df = df.loc[df["phenotype_id"] == wildcards.phenotype_id]
+        df.to_csv(output.tsv, sep="\t", index=False, float_format="%g", compression="gzip")
