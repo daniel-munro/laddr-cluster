@@ -9,6 +9,7 @@ compare/Homo_sapiens.GRCh38.113.chr.chrom.chr7.gtf
 !compare/coverage_manifest.tsv
 !compare/Snakefile
 !compare/trial*/*/config.yaml
+finemap/output
 phenos/*-models.tsv
 phenos/*/*
 !phenos/*/config.yaml

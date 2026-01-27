@@ -1,0 +1,69 @@
+from pathlib import Path
+
+# ====== Configuration ======
+PHENO_DIR = Path('../pheast/gtex-residual/input/phenotypes')
+COVAR_DIR = Path('../pheast/gtex-residual/intermediate/covar')
+CIS_OUTPUT_DIR = Path('../pheast/gtex-residual/output/qtl')
+GENO_PREFIX = '../../pantry/GTEx/geno/gtex'
+OUTPUT_DIR = Path('output')
+TISSUES_FILE = Path('../data/gtex/tissues.gtex.txt')
+
+# ====== Derived values ======
+with open(TISSUES_FILE, 'r') as fh:
+    tissues = [line.strip() for line in fh if line.strip()][:2]
+
+
+rule all:
+    input:
+        expand(OUTPUT_DIR / '{tissue}-cross_latent.SuSiE.pickle', tissue=tissues),
+        OUTPUT_DIR / 'cis_susie.all_tissues.tsv.gz'
+
+
+rule tensorqtl_cis_susie:
+    """Fine-map cis-QTLs using SuSiE via tensorqtl CLI."""
+    input:
+        geno=multiext(GENO_PREFIX, '.bed', '.bim', '.fam'),
+        bed=PHENO_DIR / '{tissue}-cross_latent.bed.gz',
+        bedi=PHENO_DIR / '{tissue}-cross_latent.bed.gz.tbi',
+        covar=COVAR_DIR / '{tissue}-cross_latent.covar.tsv',
+        cis=CIS_OUTPUT_DIR / '{tissue}-cross_latent.cis_qtl.txt.gz',
+    output:
+        pickle=OUTPUT_DIR / '{tissue}-cross_latent.SuSiE.pickle',
+        summary=OUTPUT_DIR / '{tissue}-cross_latent.SuSiE_summary.parquet',
+    params:
+        output_prefix=str(OUTPUT_DIR / '{tissue}-cross_latent'),
+    resources:
+        runtime='48h',
+        mem_mb=lambda w, attempt: 64000 * 2**(attempt-1),
+    # retries: 2
+    shell:
+        """
+        python3 -m tensorqtl \
+            {GENO_PREFIX} \
+            {input.bed} \
+            {params.output_prefix} \
+            --covariates {input.covar} \
+            --cis_output {input.cis} \
+            --mode cis_susie
+        """
+
+
+rule concat_cis_susie:
+    """Concatenate cis_susie parquet outputs across tissues, add tissue column."""
+    input:
+        summaries=expand(OUTPUT_DIR / '{tissue}-cross_latent.SuSiE_summary.parquet', tissue=tissues)
+    output:
+        tsv=OUTPUT_DIR / 'cis_susie.all_tissues.tsv.gz'
+    run:
+        import pandas as pd
+
+        frames = []
+        for summary_path in input.summaries:
+            summary_path = Path(summary_path)
+            tissue = summary_path.name.split('-cross_latent', 1)[0]
+            df = pd.read_parquet(summary_path)
+            df.insert(0, 'tissue', tissue)
+            frames.append(df)
+
+        all_df = pd.concat(frames, ignore_index=True)
+        all_df.to_csv(output.tsv, sep='\\t', index=False, compression='gzip')
