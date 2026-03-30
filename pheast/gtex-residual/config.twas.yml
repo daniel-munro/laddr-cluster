@@ -141,4 +141,4 @@ analyses:
   #   # - '{modality}.trans_qtl.txt.gz'
   twas:
     files:
-    - '{modality}.tar.bz2'
+      - "{modality}.tar.bz2"

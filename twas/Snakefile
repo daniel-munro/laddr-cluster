@@ -19,7 +19,7 @@ localrules:
 
 rule all:
     input:
-        # expand('input/sumstats/{trait}.sumstats', trait=traits),
+        expand('input/gwas/sumstats/{trait}.sumstats', trait=traits),
         expand('output/twas_hits.geuvadis-{mode}-Geuvadis.tsv', mode = ['full', 'residual']),
         expand('output/twas_hits.gtex-residual-{tissue}.tsv', tissue=tissues['gtex'] + ['Geuvadis']),
         expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex'] + ['Geuvadis']),
@@ -29,9 +29,9 @@ rule sumstats:
     input:
         gwas = 'input/gwas/imputed_gwas_hg38_1.1/imputed_{trait}.txt.gz'
     output:
-        sumstats = 'input/sumstats/{trait}.sumstats'
+        sumstats = 'input/gwas/sumstats/{trait}.sumstats'
     params:
-        output_dir = 'input/sumstats',
+        output_dir = 'input/gwas/sumstats',
     shell:
         """
         mkdir -p {params.output_dir}
@@ -56,7 +56,7 @@ def weights_dir(w):
 rule assoc_test_trait:
     """Run all chromosomes for a trait together"""
     input:
-        sumstats = 'input/sumstats/{trait}.sumstats',
+        sumstats = 'input/gwas/sumstats/{trait}.sumstats',
         # weights = '../pheast/{group}/intermediate/twas/{tissue}-latent.pos',
         weights = pos_file,
         ref_ld_chr = expand('input/LDREF_b38ids_chr/1000G.EUR.{chrom}.{ext}', chrom=chroms, ext=['bed', 'bim', 'fam']),
@@ -129,7 +129,7 @@ rule assemble_hits_all_traits:
 
 rule trait_corrs:
     input:
-        # twas_out = expand('output/gtextcga-full-{tissue}/fusion.gtextcga-full-{tissue}.{trait}.tsv', tissue=tissues['gtex'], trait=traits)
+        twas_out = expand('output/gtextcga-full-{tissue}/fusion.gtextcga-full-{tissue}.{trait}.tsv', tissue=tissues['gtex'], trait=traits)
     output:
         out = 'output/trait_corrs.gtextcga-full.tsv'
     shell:

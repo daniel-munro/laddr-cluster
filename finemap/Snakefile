@@ -10,7 +10,7 @@ TISSUES_FILE = Path('../data/gtex/tissues.gtex.txt')
 
 # ====== Derived values ======
 with open(TISSUES_FILE, 'r') as fh:
-    tissues = [line.strip() for line in fh if line.strip()][:2]
+    tissues = [line.strip() for line in fh if line.strip()]
 
 
 rule all:
@@ -66,4 +66,4 @@ rule concat_cis_susie:
             frames.append(df)
 
         all_df = pd.concat(frames, ignore_index=True)
-        all_df.to_csv(output.tsv, sep='\\t', index=False, compression='gzip')
+        all_df.to_csv(output.tsv, sep='\t', index=False, compression='gzip')

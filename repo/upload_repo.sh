@@ -1,7 +1,7 @@
 ## Upload to temporary repo location (-s prevents reuploading files if they exist at destination):
 ~/tools/Dropbox-Uploader/dropbox_uploader.sh -s upload repo/check_repo.py /LaDDR_data/
 ~/tools/Dropbox-Uploader/dropbox_uploader.sh -s upload repo/covariates LaDDR_data/
-~/tools/Dropbox-Uploader/dropbox_uploader.sh -s upload repo/file_tree.txt /LaDDR_data/
+~/tools/Dropbox-Uploader/dropbox_uploader.sh -s upload file_tree.txt /LaDDR_data/
 ~/tools/Dropbox-Uploader/dropbox_uploader.sh -s upload repo/info /LaDDR_data/
 ~/tools/Dropbox-Uploader/dropbox_uploader.sh -s upload repo/laddr_models /LaDDR_data/
 ~/tools/Dropbox-Uploader/dropbox_uploader.sh -s upload repo/qtls /LaDDR_data/
