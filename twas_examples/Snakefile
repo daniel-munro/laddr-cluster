@@ -1,0 +1,93 @@
+"""Extract per-example coverage and genotype data for TWAS figure panels."""
+
+import pandas as pd
+
+
+examples = pd.read_csv("twas_example_variants.tsv", sep="\t")
+examples["example_id"] = examples.apply(
+    lambda row: f'{row["tissue"]}.{row["gene_id"]}.{row["variant_id"]}',
+    axis=1,
+)
+example_ids = examples["example_id"].tolist()
+
+example_tissue = dict(zip(examples["example_id"], examples["tissue"]))
+example_gene = dict(zip(examples["example_id"], examples["gene_id"]))
+example_variant = dict(zip(examples["example_id"], examples["variant_id"]))
+
+gene_info = pd.read_csv("../phenos/gtextcga-full/info/genes.tsv", sep="\t")
+gene_info = gene_info[gene_info["gene_id"].isin(examples["gene_id"])]
+gene_batch = dict(zip(gene_info["gene_id"], gene_info["batch"]))
+
+gtex_geno_prefix = "/data/hps/home/dmunro/gdml/pantry/GTEx/geno/gtex"
+
+
+rule all:
+    input:
+        expand("example_data/{example_id}/bins.tsv.gz", example_id=example_ids),
+        expand("example_data/{example_id}/coverage.tsv.gz", example_id=example_ids),
+        expand(
+            "example_data/{example_id}/individual_genotypes.tsv.gz",
+            example_id=example_ids,
+        ),
+
+
+rule write_variant_id_list:
+    input:
+        tsv="twas_example_variants.tsv",
+    output:
+        txt="intermediate/variant_ids.txt",
+    run:
+        from pathlib import Path
+
+        df = pd.read_csv(input.tsv, sep="\t")
+        Path(output.txt).parent.mkdir(parents=True, exist_ok=True)
+        with open(output.txt, "w") as f:
+            for variant_id in df["variant_id"]:
+                f.write(f"{variant_id}\n")
+
+
+rule export_example_genotypes:
+    input:
+        geno=multiext(gtex_geno_prefix, ".bed", ".bim", ".fam"),
+        variants="intermediate/variant_ids.txt",
+    output:
+        raw="intermediate/example_variants.raw",
+    params:
+        out_prefix="intermediate/example_variants",
+    shell:
+        """
+        mkdir -p intermediate
+        plink2 \
+            --bfile {gtex_geno_prefix} \
+            --extract {input.variants} \
+            --export A \
+            --out {params.out_prefix}
+        """
+
+
+rule extract_example_data:
+    input:
+        examples="twas_example_variants.tsv",
+        genotypes="intermediate/example_variants.raw",
+        covg=lambda w: (
+            f'../phenos/gtextcga-full/covg_norm/{example_tissue[w.example_id]}/'
+            f'batch_{gene_batch[example_gene[w.example_id]]}.npy'
+        ),
+        bins=lambda w: (
+            f'../phenos/gtextcga-full/covg_norm/{example_tissue[w.example_id]}/'
+            f'batch_{gene_batch[example_gene[w.example_id]]}.bins.tsv.gz'
+        ),
+        samples=lambda w: (
+            f'../phenos/gtextcga-full/covg_norm/{example_tissue[w.example_id]}/'
+            'samples.txt'
+        ),
+    output:
+        bins="example_data/{example_id}/bins.tsv.gz",
+        coverage="example_data/{example_id}/coverage.tsv.gz",
+        individual_genotypes="example_data/{example_id}/individual_genotypes.tsv.gz",
+    params:
+        tissue=lambda w: example_tissue[w.example_id],
+        gene_id=lambda w: example_gene[w.example_id],
+        variant_id=lambda w: example_variant[w.example_id],
+    script:
+        "scripts/extract_example_data.py"

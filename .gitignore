@@ -1,4 +1,6 @@
+.codex
 .snakemake
+.vscode
 data
 old
 old_*
@@ -61,4 +63,6 @@ twas_example/cis_nominal
 twas_example/gwas
 twas_example/model_info
 twas_example/weights
+twas_examples/example_data
+twas_examples/intermediate
 twas_old
