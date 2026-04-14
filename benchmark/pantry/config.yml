@@ -1,0 +1,36 @@
+paired_end: True
+read_length: 75
+fastq_dir: ../../../data/geuvadis/fastq
+fastq_map: ../../../data/geuvadis/fastq_map.txt
+ref_genome: ../../../ref/human/GRCh38_no_alt_analysis_set_GCA_000001405.15.fasta
+ref_anno: ../../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf
+samples_file: ../../seqsim/data/samples.txt
+
+modality_groups:
+  alt_TSS_polyA:
+    files:
+      - alt_TSS.bed.gz
+      - alt_TSS.bed.gz.tbi
+      - alt_TSS.phenotype_groups.txt
+      - alt_polyA.bed.gz
+      - alt_polyA.bed.gz.tbi
+      - alt_polyA.phenotype_groups.txt
+  expression:
+    files:
+      - expression.bed.gz
+      - expression.bed.gz.tbi
+      - isoforms.bed.gz
+      - isoforms.bed.gz.tbi
+      - isoforms.phenotype_groups.txt
+  splicing:
+    files:
+      - splicing.bed.gz
+      - splicing.bed.gz.tbi
+      - splicing.phenotype_groups.txt
+  stability:
+    files:
+      - stability.bed.gz
+      - stability.bed.gz.tbi
+
+laddr:
+  enabled: false

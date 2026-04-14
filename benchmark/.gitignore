@@ -1,0 +1,9 @@
+__pycache__
+pantry/intermediate
+pantry/output
+pantry/scripts
+laddr/covg_bigwig
+laddr/covg_norm
+laddr/models
+laddr/phenotypes
+benchmarks/

@@ -1,0 +1,358 @@
+"""Benchmark GEUVADIS phenotyping runtime for Pantry and LaDDR on 100 samples."""
+
+from pathlib import Path
+import csv
+
+PANTRY_DIR = Path(config["pantry_project_dir"])
+SHARED_DIR = Path(config["shared_work_dir"])
+LADDR_DIR = Path(config["laddr_project_dir"])
+
+sample_list = Path("../seqsim/data/samples.txt")
+# fastq_map_file = Path("../../data/geuvadis/fastq_map.txt")
+# fastq_dir = Path("../../data/geuvadis/fastq")
+# ref_genome = Path("../../ref/human/GRCh38_no_alt_analysis_set_GCA_000001405.15.fasta")
+# ref_anno = Path("../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf")
+# star_index_dir = Path("../seqsim/data/bam/reference/star_index_75")
+
+BIGWIG_THREADS = 16
+PANTRY_THREADS = 16
+
+N_SAMPLES = int(config["benchmark"]["samples"])
+DATASET_NAME = config["benchmark"]["dataset_name"]
+
+with open(sample_list, "r") as fh:
+    samples = [line.strip() for line in fh if line.strip()]
+
+if len(samples) != N_SAMPLES:
+    raise ValueError(
+        f"Expected {N_SAMPLES} samples in {sample_list}, found {len(samples)}"
+    )
+
+fastq_pairs = {}
+with open(fastq_map_file, "r") as fh:
+    reader = csv.reader(fh, delimiter="\t")
+    for row in reader:
+        fastq_pairs[row[2]] = (
+            str(fastq_dir / row[0]),
+            str(fastq_dir / row[1]),
+        )
+
+
+def fastq_inputs(wildcards):
+    return fastq_pairs[wildcards.sample]
+
+
+def benchmark_files(prefix, values):
+    return expand(str(Path("benchmarks") / prefix / "{value}.tsv"), value=values)
+
+
+localrules:
+    setup_projects,
+
+rule all:
+    input:
+        "results/benchmark_summary.tsv",
+        "results/benchmark_summary.csv",
+
+
+# rule star_align:
+#     input:
+#         fastq=fastq_inputs,
+#         index=star_index_dir / "SAindex",
+#     output:
+#         PANTRY_DIR / "intermediate" / "star_out" / "{sample}.Aligned.sortedByCoord.out.bam",
+#     params:
+#         index_dir=star_index_dir,
+#         prefix=str(PANTRY_DIR / intermediate / "star_out" / "{sample}."),
+#     benchmark:
+#         "benchmarks/alignment/star_align/{sample}.tsv"
+#     conda: "pantry"
+#     threads: 16
+#     resources:
+#         mem_mb=60000,
+#         runtime="8h",
+#     shell:
+#         """
+#         mkdir -p {SHARED_DIR}/star_out
+#         STAR --runMode alignReads \
+#             --genomeDir {params.index_dir} \
+#             --readFilesIn {input.fastq[0]} {input.fastq[1]} \
+#             --readFilesCommand 'zcat < ' \
+#             --twopassMode Basic \
+#             --outSAMstrandField intronMotif \
+#             --outSAMtype BAM SortedByCoordinate \
+#             --outFileNamePrefix {params.prefix} \
+#             --runThreadN {threads}
+#         """
+
+
+# rule shrink_bam:
+#     input:
+#         PANTRY_DIR / "intermediate" / "star_out" / "{sample}.Aligned.sortedByCoord.out.bam",
+#     output:
+#         PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam",
+#     benchmark:
+#         "benchmarks/pantry/shrink_bam/{sample}.tsv"
+#     conda: "pantry"
+#     shell:
+#         """
+#         mkdir -p {SHARED_DIR}/bam
+#         samtools view -h {input} \
+#             | awk -v OFS="\\t" '{{if (substr($0, 1, 1) != "@") {{$10="*"; $11="*"}}; print ;}}' \
+#             | samtools view -h -b \
+#             > {output}
+#         """
+
+
+# rule index_bam:
+#     input:
+#         PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam",
+#     output:
+#         PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam.bai",
+#     params:
+#         add_threads=lambda w, threads: threads - 1,
+#     benchmark:
+#         "benchmarks/alignment/index_bam/{sample}.tsv"
+#     conda: "pantry"
+#     threads: 8
+#     shell:
+#         """
+#         samtools index -@ {params.add_threads} {input}
+#         """
+
+
+rule generate_bigwig:
+    input:
+        bam=PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam",
+        bai=PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam.bai",
+    output:
+        LADDR_DIR / "covg_bigwig" / "{sample}.bw",
+    benchmark:
+        "benchmarks/laddr/bigwig/{sample}.tsv"
+    conda: "latent"
+    threads: 16
+    shell:
+        """
+        mkdir -p {LADDR_DIR}/covg_bigwig
+        bamCoverage -b {input.bam} -o {output} --binSize 1 -p {threads}
+        """
+
+
+rule pantry_alt_tss_polya:
+    input:
+        setup=rules.setup_projects.output.pantry_config,
+        bam=expand(str(PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam"), sample=samples),
+        bai=expand(str(PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam.bai"), sample=samples),
+    output:
+        PANTRY_DIR / "output" / "alt_TSS.bed.gz",
+        PANTRY_DIR / "output" / "alt_TSS.bed.gz.tbi",
+        PANTRY_DIR / "output" / "alt_TSS.phenotype_groups.txt",
+        PANTRY_DIR / "output" / "alt_polyA.bed.gz",
+        PANTRY_DIR / "output" / "alt_polyA.bed.gz.tbi",
+        PANTRY_DIR / "output" / "alt_polyA.phenotype_groups.txt",
+    benchmark:
+        "benchmarks/pantry/alt_TSS_polyA.tsv"
+    conda: "pantry"
+    threads: PANTRY_THREADS
+    shell:
+        """
+        cd {PANTRY_DIR}
+        snakemake --cores {threads} --snakefile Snakefile \
+            output/alt_TSS.bed.gz \
+            output/alt_TSS.bed.gz.tbi \
+            output/alt_TSS.phenotype_groups.txt \
+            output/alt_polyA.bed.gz \
+            output/alt_polyA.bed.gz.tbi \
+            output/alt_polyA.phenotype_groups.txt
+        """
+
+
+rule pantry_expression_isoforms:
+    input:
+        setup=rules.setup_projects.output.pantry_config,
+    output:
+        PANTRY_DIR / "output" / "expression.bed.gz",
+        PANTRY_DIR / "output" / "expression.bed.gz.tbi",
+        PANTRY_DIR / "output" / "isoforms.bed.gz",
+        PANTRY_DIR / "output" / "isoforms.bed.gz.tbi",
+        PANTRY_DIR / "output" / "isoforms.phenotype_groups.txt",
+    benchmark:
+        "benchmarks/pantry/expression_isoforms.tsv"
+    conda: "pantry"
+    threads: PANTRY_THREADS
+    shell:
+        """
+        cd {PANTRY_DIR}
+        snakemake --cores {threads} \
+            output/expression.bed.gz \
+            output/expression.bed.gz.tbi \
+            output/isoforms.bed.gz \
+            output/isoforms.bed.gz.tbi \
+            output/isoforms.phenotype_groups.txt
+        """
+
+
+rule pantry_splicing:
+    input:
+        setup=rules.setup_projects.output.pantry_config,
+        bam=expand(str(PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam"), sample=samples),
+        bai=expand(str(PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam.bai"), sample=samples),
+    output:
+        PANTRY_DIR / "output" / "splicing.bed.gz",
+        PANTRY_DIR / "output" / "splicing.bed.gz.tbi",
+        PANTRY_DIR / "output" / "splicing.phenotype_groups.txt",
+    benchmark:
+        "benchmarks/pantry/splicing.tsv"
+    conda: "pantry"
+    threads: PANTRY_THREADS
+    shell:
+        """
+        cd {PANTRY_DIR}
+        snakemake --cores {threads} \
+            output/splicing.bed.gz \
+            output/splicing.bed.gz.tbi \
+            output/splicing.phenotype_groups.txt
+        """
+
+
+rule pantry_stability:
+    input:
+        setup=rules.setup_projects.output.pantry_config,
+        bam=expand(str(PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam"), sample=samples),
+        bai=expand(str(PANTRY_DIR / "intermediate" / "bam" / "{sample}.bam.bai"), sample=samples),
+    output:
+        PANTRY_DIR / "output" / "stability.bed.gz",
+        PANTRY_DIR / "output" / "stability.bed.gz.tbi",
+    benchmark:
+        "benchmarks/pantry/stability.tsv"
+    conda: "pantry"
+    threads: THREADS
+    shell:
+        """
+        cd {PANTRY_DIR}
+        snakemake --cores {threads} \
+            output/stability.bed.gz \
+            output/stability.bed.gz.tbi
+        """
+
+
+rule laddr_setup:
+    input:
+        config=LADDR_DIR / "config.yaml",
+        manifest=LADDR_DIR / "coverage_manifest.tsv",
+        bw=expand(str(LADDR_DIR / "covg_bigwig" / "{sample}.bw"), sample=samples),
+    output:
+        LADDR_DIR / "info" / "genes.tsv",
+        LADDR_DIR / "info" / "exons.tsv.gz",
+        LADDR_DIR / "info" / "n_batches.txt",
+        LADDR_DIR / "info" / "median_coverage.txt",
+    benchmark:
+        "benchmarks/laddr/setup.tsv"
+    conda: "latent"
+    shell:
+        """
+        laddr setup -p {LADDR_DIR} -c {input.config}
+        """
+
+
+rule laddr_binning:
+    input:
+        setup=rules.laddr_setup.output,
+    output:
+        LADDR_DIR / "gene_bins",
+    benchmark:
+        "benchmarks/laddr/binning.tsv"
+    conda: "latent"
+    shell:
+        """
+        laddr binning -p {LADDR_DIR} -c {rules.setup_projects.output.laddr_config}
+        """
+
+
+rule laddr_coverage:
+    input:
+        setup=rules.setup_projects.output.laddr_config,
+        manifest=rules.setup_projects.output.laddr_manifest,
+        info=rules.laddr_setup.output,
+        bins=rules.laddr_binning.output,
+        bw=expand(str(LADDR_DIR / "covg_bigwig" / "{sample}.bw"), sample=samples),
+    output:
+        LADDR_DIR / "covg_norm" / DATASET_NAME / ".coverage_done",
+    benchmark:
+        "benchmarks/laddr/coverage.tsv"
+    conda: "latent"
+    shell:
+        """
+        laddr coverage -p {LADDR_DIR} -c {input.setup} -d {DATASET_NAME}
+        touch {output}
+        """
+
+
+rule laddr_fit:
+    input:
+        config=rules.setup_projects.output.laddr_config,
+        coverage=rules.laddr_coverage.output,
+    output:
+        LADDR_DIR / "models" / ".fit_done",
+    benchmark:
+        "benchmarks/laddr/fit.tsv"
+    conda: "latent"
+    shell:
+        """
+        laddr fit -p {LADDR_DIR} -c {input.config}
+        touch {output}
+        """
+
+
+rule laddr_transform:
+    input:
+        config=rules.setup_projects.output.laddr_config,
+        coverage=rules.laddr_coverage.output,
+        fit=rules.laddr_fit.output,
+    output:
+        LADDR_DIR / "phenotypes" / f"latent_phenos.{DATASET_NAME}.tsv.gz",
+    benchmark:
+        "benchmarks/laddr/transform.tsv"
+    conda: "latent"
+    shell:
+        """
+        laddr transform -p {LADDR_DIR} -c {input.config} -d {DATASET_NAME}
+        """
+
+
+rule summarize_benchmarks:
+    input:
+        alignment=benchmark_files("alignment/star_align", samples)
+        + benchmark_files("pantry/shrink_bam", samples)
+        + benchmark_files("alignment/index_bam", samples),
+        bigwig=benchmark_files("laddr/bigwig", samples),
+        pantry=[
+            "benchmarks/pantry/alt_TSS_polyA.tsv",
+            "benchmarks/pantry/expression_isoforms.tsv",
+            "benchmarks/pantry/splicing.tsv",
+            "benchmarks/pantry/stability.tsv",
+        ],
+        laddr=[
+            "benchmarks/laddr/setup.tsv",
+            "benchmarks/laddr/binning.tsv",
+            "benchmarks/laddr/coverage.tsv",
+            "benchmarks/laddr/fit.tsv",
+            "benchmarks/laddr/transform.tsv",
+        ],
+    output:
+        tsv="results/benchmark_summary.tsv",
+        csv="results/benchmark_summary.csv",
+    params:
+        samples=N_SAMPLES,
+        pantry_threads=PANTRY_THREADS,
+        bigwig_threads=BIGWIG_THREADS,
+    shell:
+        """
+        mkdir -p results
+        python3 scripts/summarize_benchmarks.py \
+            --samples {params.samples} \
+            --pantry-threads {params.pantry_threads} \
+            --bigwig-threads {params.bigwig_threads} \
+            --output-tsv {output.tsv} \
+            --output-csv {output.csv}
+        """

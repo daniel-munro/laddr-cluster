@@ -1,0 +1,21 @@
+input:
+  gtf: ../../../ref/human-ensembl/Homo_sapiens.GRCh38.113.chr.chrom.gtf
+  coverage:
+    method: manifest
+    directory: covg_bigwig
+    manifest: coverage_manifest.tsv
+
+min_samples_expressed: 0.5
+
+binning:
+  use_existing: false
+  batch_size: 40
+  max_bin_width: 1024
+  adaptive:
+    max_samples: 256
+    bins_per_gene: 256
+
+model:
+  use_existing: false
+  var_explained_max: 0.8
+  n_pcs_max: 16
