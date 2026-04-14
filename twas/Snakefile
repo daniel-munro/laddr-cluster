@@ -23,6 +23,8 @@ rule all:
         expand('output/twas_hits.geuvadis-{mode}-Geuvadis.tsv', mode = ['full', 'residual']),
         expand('output/twas_hits.gtex-residual-{tissue}.tsv', tissue=tissues['gtex'] + ['Geuvadis']),
         expand('output/twas_hits.gtextcga-full-{tissue}.tsv', tissue=tissues['gtex'] + ['Geuvadis']),
+        'output/ddp_twas_id_twas_p.tsv.gz',
+        'output/kdp_twas_id_twas_p.tsv.gz',
         'output/trait_corrs.gtextcga-full.tsv',
 
 rule sumstats:
@@ -134,3 +136,28 @@ rule trait_corrs:
         out = 'output/trait_corrs.gtextcga-full.tsv'
     shell:
         "python3 scripts/trait_corrs.py --out {output.out}"
+
+
+rule extract_ddp_twas_p:
+    input:
+        fusion = expand(
+            'output/geuvadis-full-Geuvadis/fusion.geuvadis-full-Geuvadis.{trait}.tsv',
+            trait=traits,
+        )
+    output:
+        out = 'output/twas_pvalues_ddp.tsv.gz'
+    shell:
+        "python3 scripts/extract_twas_pvals.py --dataset ddp --out {output.out}"
+
+
+rule extract_kdp_twas_p:
+    input:
+        fusion = expand(
+            '../../pantry/twas/output/GEUVADIS/{modality}/fusion.GEUVADIS.{modality}.{trait}.tsv',
+            modality=['alt_polyA', 'alt_TSS', 'expression', 'isoforms', 'splicing', 'stability'],
+            trait=traits,
+        )
+    output:
+        out = 'output/twas_pvalues_kdp.tsv.gz'
+    shell:
+        "python3 scripts/extract_twas_pvals.py --dataset kdp --out {output.out}"

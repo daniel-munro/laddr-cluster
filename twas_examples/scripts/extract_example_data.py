@@ -54,7 +54,7 @@ gene_bins = bins.loc[gene_mask].reset_index(drop=True).copy()
 gene_bins.insert(0, "bin_id", [f"bin_{i:03d}" for i in range(gene_bins.shape[0])])
 
 covg = np.load(snakemake.input.covg, mmap_mode="r")
-gene_covg = covg[gene_mask.to_numpy(), :]
+gene_covg = np.power(2.0, covg[gene_mask.to_numpy(), :]) - 8.0
 
 if gene_covg.shape[1] != samples.shape[0]:
     raise ValueError(
