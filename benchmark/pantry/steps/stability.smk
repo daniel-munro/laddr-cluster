@@ -5,6 +5,8 @@ rule exonic_intronic_from_GTF:
     output:
         exon_gtf = ref_dir / 'exonic.gtf',
         intron_gtf = ref_dir / 'intronic.gtf',
+    benchmark:
+        benchmark_path('pantry', 'stability', 'exonic_intronic_from_gtf.tsv')
     shell:
         """
         python3 scripts/exonic_intronic_from_gtf.py \
@@ -35,6 +37,8 @@ rule run_featureCounts:
     threads: 8
     resources:
         runtime = '16h',
+    benchmark:
+        benchmark_path('pantry', 'stability', 'featurecounts', '{sample_id}.{feature_type}.tsv')
     shell:
         """
         mkdir -p {params.stab_dir}
@@ -62,6 +66,8 @@ rule assemble_stability_bed:
         stab_dir = interm_dir / 'stability',
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'stability', 'assemble.tsv')
     shell:
         """
         mkdir -p {params.unnorm_dir}
@@ -81,6 +87,8 @@ rule normalize_stability:
         output_dir / 'stability.bed.gz',
     params:
         bed = output_dir / 'stability.bed',
+    benchmark:
+        benchmark_path('pantry', 'stability', 'normalize.tsv')
     shell:
         """
         mkdir -p {output_dir}

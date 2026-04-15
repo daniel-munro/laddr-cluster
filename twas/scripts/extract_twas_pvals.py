@@ -21,6 +21,7 @@ def extract_ddp() -> pd.DataFrame:
     dfs = []
     for trait in TRAITS:
         df = pd.read_csv(ddp_file(trait), sep="\t", usecols=["ID", "TWAS.P"])
+        df.insert(0, "trait", trait)
         dfs.append(df)
     return pd.concat(dfs, ignore_index=True)
 
@@ -30,6 +31,7 @@ def extract_kdp() -> pd.DataFrame:
     for modality in KDP_MODALITIES:
         for trait in TRAITS:
             df = pd.read_csv(kdp_file(modality, trait), sep="\t", usecols=["ID", "TWAS.P"])
+            df.insert(0, "trait", trait)
             dfs.append(df)
     return pd.concat(dfs, ignore_index=True)
 

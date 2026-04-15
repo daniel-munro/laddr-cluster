@@ -4,6 +4,11 @@ import numpy as np
 import pandas as pd
 
 configfile: 'config.yml'
+BENCHMARK_DIR = Path('../benchmarks')
+
+
+def benchmark_path(*parts) -> str:
+    return str(BENCHMARK_DIR.joinpath(*[str(part) for part in parts]))
 
 # This code validates and processes the configuration and sets global variables:
 include: 'steps/setup.smk'
@@ -57,11 +62,13 @@ if laddr_enabled:
 rule index_bam:
     """Index a BAM file."""
     input:
-        '{basename}.bam',
+        interm_dir / 'bam' / '{sample_id}.bam',
     output:
-        '{basename}.bam.bai',
+        interm_dir / 'bam' / '{sample_id}.bam.bai',
     params:
         add_threads = lambda w, threads: threads - 1,
+    benchmark:
+        benchmark_path('alignment', 'index_bam', '{sample_id}.tsv')
     threads: 8
     shell:
         # It expects the number of *additional* threads to use beyond the first.

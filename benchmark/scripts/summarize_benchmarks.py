@@ -11,7 +11,6 @@ def parse_args():
     parser.add_argument("--pantry-threads", type=int, required=True)
     parser.add_argument("--bigwig-threads", type=int, required=True)
     parser.add_argument("--output-tsv", required=True)
-    parser.add_argument("--output-csv", required=True)
     return parser.parse_args()
 
 
@@ -72,6 +71,13 @@ def one_component(path):
     return benchmark_seconds(row), benchmark_max_rss_mb(row)
 
 
+def glob_component(base_dir, *patterns):
+    paths = []
+    for pattern in patterns:
+        paths.extend(sorted(base_dir.glob(pattern)))
+    return paths
+
+
 def write_table(path, rows, delimiter):
     fieldnames = [
         "method",
@@ -93,25 +99,26 @@ def main():
     args = parse_args()
     benchmark_dir = Path("benchmarks")
 
-    alignment_paths = (
-        sorted((benchmark_dir / "alignment" / "star_align").glob("*.tsv"))
-        + sorted((benchmark_dir / "alignment" / "shrink_bam").glob("*.tsv"))
-        + sorted((benchmark_dir / "alignment" / "index_bam").glob("*.tsv"))
+    alignment_paths = glob_component(
+        benchmark_dir,
+        "alignment/star_align/*.tsv",
+        "alignment/index_bam/*.tsv",
     )
-    bigwig_paths = sorted((benchmark_dir / "shared" / "bigwig").glob("*.tsv"))
+    bigwig_paths = glob_component(benchmark_dir, "laddr/bigwig/*.tsv")
 
     pantry_components = [
-        ("alt_TSS/alt_polyA", benchmark_dir / "pantry" / "alt_TSS_polyA.tsv"),
-        ("expression/isoforms", benchmark_dir / "pantry" / "expression_isoforms.tsv"),
-        ("splicing", benchmark_dir / "pantry" / "splicing.tsv"),
-        ("stability", benchmark_dir / "pantry" / "stability.tsv"),
+        ("alt_TSS/alt_polyA", glob_component(benchmark_dir, "pantry/alt_TSS_polyA/**/*.tsv")),
+        ("expression/isoforms", glob_component(benchmark_dir, "pantry/expression/**/*.tsv")),
+        ("splicing", glob_component(benchmark_dir, "pantry/splicing/**/*.tsv")),
+        ("stability", glob_component(benchmark_dir, "pantry/stability/**/*.tsv")),
+        ("bam shrinking", glob_component(benchmark_dir, "alignment/shrink_bam/*.tsv")),
     ]
     laddr_components = [
-        ("laddr setup", benchmark_dir / "laddr" / "setup.tsv"),
-        ("laddr binning", benchmark_dir / "laddr" / "binning.tsv"),
-        ("laddr coverage", benchmark_dir / "laddr" / "coverage.tsv"),
-        ("laddr fit", benchmark_dir / "laddr" / "fit.tsv"),
-        ("laddr transform", benchmark_dir / "laddr" / "transform.tsv"),
+        ("laddr setup", [benchmark_dir / "laddr" / "setup.tsv"]),
+        ("laddr binning", [benchmark_dir / "laddr" / "binning.tsv"]),
+        ("laddr coverage", [benchmark_dir / "laddr" / "coverage.tsv"]),
+        ("laddr fit", [benchmark_dir / "laddr" / "fit.tsv"]),
+        ("laddr transform", glob_component(benchmark_dir, "laddr/transform/*.tsv")),
     ]
 
     rows = []
@@ -125,27 +132,27 @@ def main():
             "threads": "",
             "runtime_seconds": round_or_blank(alignment_seconds),
             "max_rss_mb": round_or_blank(alignment_rss),
-            "notes": "Sum of STAR alignment, BAM shrinking, and BAM indexing across samples.",
+            "notes": "Sum of STAR alignment and BAM indexing across samples.",
         }
     )
 
     bigwig_seconds, bigwig_rss = sum_component(bigwig_paths)
     rows.append(
         {
-            "method": "shared",
+            "method": "LaDDR",
             "component": "bamCoverage",
             "samples": args.samples,
             "threads": args.bigwig_threads,
             "runtime_seconds": round_or_blank(bigwig_seconds),
             "max_rss_mb": round_or_blank(bigwig_rss),
-            "notes": "Sum of per-sample bigWig generation across samples.",
+            "notes": "Sum of per-sample bigWig generation from Pantry BAMs.",
         }
     )
 
     pantry_total = 0.0
     pantry_total_rss = None
-    for component, path in pantry_components:
-        seconds, rss = one_component(path)
+    for component, paths in pantry_components:
+        seconds, rss = sum_component(paths)
         pantry_total += seconds
         if rss is not None:
             pantry_total_rss = rss if pantry_total_rss is None else max(pantry_total_rss, rss)
@@ -169,14 +176,14 @@ def main():
             "threads": args.pantry_threads,
             "runtime_seconds": round_or_blank(pantry_total),
             "max_rss_mb": round_or_blank(pantry_total_rss),
-            "notes": "Sum of Pantry modality-group benchmark runs only.",
+            "notes": "Sum of Pantry alignment-adjacent shrinking plus modality-group benchmark runs.",
         }
     )
 
     laddr_total = 0.0
     laddr_total_rss = None
-    for component, path in laddr_components:
-        seconds, rss = one_component(path)
+    for component, paths in laddr_components:
+        seconds, rss = sum_component(paths)
         laddr_total += seconds
         if rss is not None:
             laddr_total_rss = rss if laddr_total_rss is None else max(laddr_total_rss, rss)
@@ -200,12 +207,11 @@ def main():
             "threads": "",
             "runtime_seconds": round_or_blank(laddr_total),
             "max_rss_mb": round_or_blank(laddr_total_rss),
-            "notes": "Sum of LaDDR setup, binning, coverage, fit, and transform.",
+            "notes": "Sum of LaDDR bamCoverage, setup, binning, coverage, fit, and transform.",
         }
     )
 
     write_table(args.output_tsv, rows, "\t")
-    write_table(args.output_csv, rows, ",")
 
 
 if __name__ == "__main__":

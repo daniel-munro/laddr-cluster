@@ -14,6 +14,8 @@ rule regtools_junctions:
         min_intron_len = 50,
         max_intron_len = 500000,
         strandedness = "XS",
+    benchmark:
+        benchmark_path('pantry', 'splicing', 'regtools', '{sample_id}.tsv')
     shell:
         """
         mkdir -p {params.splice_dir}
@@ -38,6 +40,8 @@ rule cluster_junctions:
         max_intron_len = 100000,
         min_clust_reads = 30,
         min_clust_ratio = 0.001,
+    benchmark:
+        benchmark_path('pantry', 'splicing', 'cluster_junctions.tsv')
     shell:
         """
         printf '%s\\n' {input} > {params.juncfile_list}
@@ -60,6 +64,8 @@ rule assemble_splicing_bed:
         unnorm_dir = output_dir / 'unnorm',
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'splicing', 'assemble.tsv')
     shell:
         """
         mkdir -p {params.unnorm_dir}
@@ -80,6 +86,8 @@ rule normalize_splicing:
         bed = output_dir / 'splicing.bed',
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'splicing', 'normalize.tsv')
     shell:
         """
         mkdir -p {output_dir}
@@ -96,6 +104,8 @@ rule pheno_groups_splicing:
         output_dir / 'splicing.bed.gz',
     output:
         output_dir / 'splicing.phenotype_groups.txt',
+    benchmark:
+        benchmark_path('pantry', 'splicing', 'phenotype_groups.tsv')
     shell:
         """
         zcat < {input} \

@@ -61,6 +61,8 @@ rule star_align:
     resources:
         mem_mb = 60000,
         runtime = '8h',
+    benchmark:
+        benchmark_path('alignment', 'star_align', '{sample_id}.tsv')
     shell:
         """
         mkdir -p {params.star_out_dir}
@@ -83,6 +85,8 @@ rule shrink_bam:
         interm_dir / 'bam' / '{sample_id}.bam',
     params:
         bam_dir = interm_dir / 'bam',
+    benchmark:
+        benchmark_path('alignment', 'shrink_bam', '{sample_id}.tsv')
     shell:
         """
         mkdir -p {params.bam_dir}

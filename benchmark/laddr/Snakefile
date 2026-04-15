@@ -1,123 +1,135 @@
 from pathlib import Path
-import numpy as np
 import pandas as pd
 
 configfile: 'config.yaml'
-working_dir = Path('.')
 
-BATCH_FILE = working_dir / 'info' / 'n_batches.txt'
-assert BATCH_FILE.exists(), f'{BATCH_FILE} not found. Run laddr setup first.'
-with open(BATCH_FILE, 'r') as f:
-    N_BATCHES = int(f.read())
+working_dir = Path('.')
+benchmark_root = Path('..')
+pantry_dir = benchmark_root / 'pantry'
+benchmark_dir = benchmark_root / 'benchmarks' / 'laddr'
+
+
+def benchmark_path(*parts) -> str:
+    return str(benchmark_dir.joinpath(*[str(part) for part in parts]))
+
 
 assert config['input']['coverage']['method'] == 'manifest'
-sample_table = pd.read_csv(config['input']['coverage']['manifest'], sep='\t', names=['dataset', 'sample', 'path'])
+sample_table = pd.read_csv(
+    config['input']['coverage']['manifest'],
+    sep='\t',
+    names=['dataset', 'sample', 'path'],
+)
 if 'directory' in config['input']['coverage']:
-    # Prepend coverage directory to paths if specified
     covg_dir = Path(config['input']['coverage']['directory'])
     sample_table['path'] = sample_table['path'].apply(lambda p: str(covg_dir / p))
 
 datasets = sample_table['dataset'].unique().tolist()
 
-def get_dataset_pheno_paths(dataset):
-    pheno_paths = []
-    for p in config['input'].get('pheno_paths', []):
-        pheno_path = p.format(dataset=dataset)
-        pheno_paths.append(working_dir / pheno_path)
-    return pheno_paths
 
 rule all:
     input:
-        # expand(working_dir / 'gene_bins' / 'batch_{batch}.bed.gz', batch=range(N_BATCHES)),
-        # working_dir / 'covg_norm' / 'dset1' / 'batch_0.npy',
-        # working_dir / 'models' / 'models_batch_0.pickle',
-        expand(working_dir / 'phenotypes' /'latent_phenos.{dataset}.tsv.gz', dataset=datasets),
-        # expand(working_dir / 'inspect' / 'inspect.{gene_id}.{dataset}.tsv.gz', gene_id=['ENSG00000008128'], dataset=datasets),
+        expand(working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz', dataset=datasets),
 
-assert not config['binning']['use_existing'], 'Comment out laddr_binning rule if using existing info/ and gene_bins/ directories'
-rule laddr_binning:
-    """Divide gene features into bins
-    
-    Comment this rule out (and the above assert) if using existing info/ and gene_bins/ directories.
-    """
+
+rule bam_to_bigwig:
     input:
-        genes = working_dir / 'info' / 'genes.tsv',
-        exons = working_dir / 'info' / 'exons.tsv.gz',
-        var_per_bin = working_dir / 'info' / 'var_per_bin.txt',
-        bw = sample_table['path'].tolist(),
+        bam=pantry_dir / 'intermediate' / 'bam' / '{sample}.bam',
+        bai=pantry_dir / 'intermediate' / 'bam' / '{sample}.bam.bai',
     output:
-        beds = working_dir / 'gene_bins' / 'batch_{batch}.bed.gz',
-    resources:
-        mem_mb = 32000,
-        runtime = '12h',
+        bw=working_dir / 'covg_bigwig' / '{sample}.bw',
+    benchmark:
+        benchmark_path('bigwig', '{sample}.tsv')
+    conda: 'laddr'
+    threads: 16
     shell:
         """
-        laddr binning -b {wildcards.batch}
+        mkdir -p {working_dir}/covg_bigwig
+        bamCoverage -b {input.bam} -o {output.bw} --binSize 1 -p {threads}
         """
+
+
+rule laddr_setup:
+    input:
+        config='config.yaml',
+        manifest='coverage_manifest.tsv',
+        bw=sample_table['path'].tolist(),
+    output:
+        genes=working_dir / 'info' / 'genes.tsv',
+        exons=working_dir / 'info' / 'exons.tsv.gz',
+        n_batches=working_dir / 'info' / 'n_batches.txt',
+        median_covg=working_dir / 'info' / 'median_coverage.txt',
+        var_per_bin=working_dir / 'info' / 'var_per_bin.txt',
+    benchmark:
+        benchmark_path('setup.tsv')
+    conda: 'laddr'
+    shell:
+        """
+        laddr setup -p {working_dir} -c {input.config}
+        """
+
+
+rule laddr_binning:
+    input:
+        config='config.yaml',
+        setup=rules.laddr_setup.output,
+        bw=sample_table['path'].tolist(),
+    output:
+        done=touch(working_dir / 'gene_bins' / '.done'),
+    benchmark:
+        benchmark_path('binning.tsv')
+    conda: 'laddr'
+    shell:
+        """
+        laddr binning -p {working_dir} -c {input.config}
+        touch {output.done}
+        """
+
 
 rule laddr_coverage:
-    """Assemble coverage across samples, normalize, regress out explicit phenotypes, and bin into batches for PCA"""
     input:
-        bw = lambda w: sample_table.loc[sample_table['dataset'] == w.dataset, 'path'].tolist(),
-        bins = working_dir / 'gene_bins' / 'batch_{batch}.bed.gz',
-        median_covg = working_dir / 'info' / 'median_coverage.txt',
-        phenos = lambda w: get_dataset_pheno_paths(w.dataset),
+        config='config.yaml',
+        bins=rules.laddr_binning.output.done,
+        median_covg=working_dir / 'info' / 'median_coverage.txt',
+        bw=sample_table['path'].tolist(),
     output:
-        covg = working_dir / 'covg_norm' / '{dataset}' / 'batch_{batch}.npy',
-        covg_norm_bins = working_dir / 'covg_norm' / '{dataset}' / 'batch_{batch}.bins.tsv.gz',
-    resources:
-        mem_mb = 32000,
-        runtime = '12h',
+        done=touch(working_dir / 'covg_norm' / '.done'),
+    benchmark:
+        benchmark_path('coverage.tsv')
+    conda: 'laddr'
     shell:
         """
-        laddr coverage -d {wildcards.dataset} -b {wildcards.batch}
+        laddr coverage -p {working_dir} -c {input.config}
+        touch {output.done}
         """
 
-assert not config['model']['use_existing'], 'Comment out laddr_fit rule if using existing models/ directory'
+
 rule laddr_fit:
-    """Fit models to latent features
-    
-    Comment this rule out (and the above assert) if using existing models/ directory.
-    """
     input:
-        covg_norm = expand(str(working_dir / 'covg_norm' / '{dataset}' / 'batch_{{batch}}.npy'), dataset=datasets),
-        covg_norm_bins = expand(str(working_dir / 'covg_norm' / '{dataset}' / 'batch_{{batch}}.bins.tsv.gz'), dataset=datasets),
+        config='config.yaml',
+        coverage=rules.laddr_coverage.output.done,
     output:
-        models = working_dir / 'models' / 'models_batch_{batch}.pickle',
-    resources:
-        mem_mb = 32000,
-        runtime = '12h',
+        done=touch(working_dir / 'models' / '.done'),
+    benchmark:
+        benchmark_path('fit.tsv')
+    conda: 'laddr'
     shell:
         """
-        laddr fit -b {wildcards.batch}
+        laddr fit -p {working_dir} -c {input.config}
+        touch {output.done}
         """
+
 
 rule laddr_transform:
-    """Apply models to generate latent phenotypes"""
     input:
-        covg_norm = expand(str(working_dir / 'covg_norm' / '{{dataset}}' / 'batch_{batch}.npy'), batch=range(N_BATCHES)),
-        covg_norm_bins = expand(str(working_dir / 'covg_norm' / '{{dataset}}' / 'batch_{batch}.bins.tsv.gz'), batch=range(N_BATCHES)),
-        models = expand(str(working_dir / 'models' / 'models_batch_{batch}.pickle'), batch=range(N_BATCHES)),
+        config='config.yaml',
+        coverage=rules.laddr_coverage.output.done,
+        fit=rules.laddr_fit.output.done,
     output:
-        phenos = working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz',
-    resources:
-        mem_mb = 32000,
+        phenos=working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz',
+    benchmark:
+        benchmark_path('transform', '{dataset}.tsv')
+    conda: 'laddr'
     shell:
         """
-        laddr transform -d {wildcards.dataset}
-        """
-
-rule laddr_inspect:
-    """Extract model data for visualization"""
-    input:
-        genes = working_dir / 'info' / 'genes.tsv',
-        covg_norm = expand(str(working_dir / 'covg_norm' / '{{dataset}}' / 'batch_{batch}.npy'), batch=range(N_BATCHES)),
-        covg_norm_bins = expand(str(working_dir / 'covg_norm' / '{{dataset}}' / 'batch_{batch}.bins.tsv.gz'), batch=range(N_BATCHES)),
-        models = expand(str(working_dir / 'models' / 'models_batch_{batch}.pickle'), batch=range(N_BATCHES)),
-        phenos = working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz',
-    output:
-        inspect = working_dir / 'inspect' / 'inspect.{gene_id}.{dataset}.tsv.gz',
-    shell:
-        """
-        laddr inspect -g {wildcards.gene_id} -d {wildcards.dataset}
+        laddr transform -p {working_dir} -c {input.config} -d {wildcards.dataset}
         """

@@ -11,6 +11,8 @@ rule kallisto_index:
         ref_dir = ref_dir,
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'expression', 'kallisto_index.tsv')
     shell:
         """
         mkdir -p {params.ref_dir}
@@ -34,6 +36,8 @@ rule kallisto:
     threads: 16
     resources:
         runtime = '16h',
+    benchmark:
+        benchmark_path('pantry', 'expression', 'kallisto', '{sample_id}.tsv')
     shell:
         """
         mkdir -p {params.expr_dir}
@@ -62,6 +66,8 @@ rule assemble_expression_bed:
         expr_dir = interm_dir / 'expression',
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'expression', 'assemble_expression.tsv')
     shell:
         """
         mkdir -p {params.unnorm_dir}
@@ -84,6 +90,8 @@ rule normalize_expression:
         bed = str(output_dir / 'expression.bed'),
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'expression', 'normalize_expression.tsv')
     shell:
         """
         python3 scripts/normalize_phenotypes.py \
@@ -104,6 +112,8 @@ rule normalize_isoforms:
         bed = str(output_dir / 'isoforms.bed'),
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'expression', 'normalize_isoforms.tsv')
     shell:
         """
         mkdir -p {output_dir}
@@ -120,6 +130,8 @@ rule pheno_groups_isoforms:
         output_dir / 'isoforms.bed.gz',
     output:
         output_dir / 'isoforms.phenotype_groups.txt',
+    benchmark:
+        benchmark_path('pantry', 'expression', 'phenotype_groups_isoforms.tsv')
     shell:
         """
         zcat < {input} \

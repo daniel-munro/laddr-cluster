@@ -9,6 +9,10 @@ rule preprocess_gtf_for_txrevise:
         ref_anno,
     output:
         ref_dir / 'txrevise' / 'gene_annotations.gtf',
+    resources:
+        mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'preprocess_gtf.tsv')
     shell:
         """
         python3 scripts/txrevise/preprocess_gtf.py \
@@ -25,6 +29,8 @@ rule txrevise_extract_tags:
         ref_dir / 'txrevise' / 'gene_annotations.gtf',
     output:
         tags = ref_dir / 'txrevise' / 'transcript_tags.txt',
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'extract_tags.tsv')
     shell:
         """
         python3 scripts/txrevise/extractTranscriptTags.py \
@@ -39,6 +45,8 @@ rule txrevise_prepare_annotations:
         tags = ref_dir / 'txrevise' / 'transcript_tags.txt',
     output:
         ref_dir / 'txrevise' / 'txrevise_annotations.rds',
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'prepare_annotations.tsv')
     shell:
         """
         Rscript scripts/txrevise/prepareAnnotations.R \
@@ -63,6 +71,8 @@ rule txrevise_construct_events:
         outdir = ref_dir / 'txrevise' / 'batch',
     resources:
         runtime = '16h',
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'construct_events', '{batch}_{n_batches}.tsv')
     shell:
         """
         Rscript scripts/txrevise/constructEvents.R \
@@ -79,6 +89,8 @@ rule txrevise_merge_gff_files:
             n_batches = TXREVISE_N_BATCHES),
     output:
         gff = ref_dir / 'txrevise' / 'txrevise.{group}.{position}.gff3',
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'merge_gff', '{group}.{position}.tsv')
     shell:
         'cat {input.gff} | grep -v "^#" > {output.gff}'
 
@@ -91,6 +103,8 @@ rule txrevise_make_one:
         # metadata = 'processed/{annotation}_{kind}/txrevise_{kind}_phenotype_metadata.tsv.gz'
     output:
         ref_dir / 'txrevise' / 'completed.txt',
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'make_one.tsv')
     shell:
         "echo 'Done!' > {output}"
 
@@ -101,6 +115,8 @@ rule alt_TSS_polyA_transcript_seqs:
         gff3 = ref_dir / 'txrevise' / 'txrevise.{group}.{position}.gff3',
     output:
         ref_dir / 'txrevise' / 'txrevise.{group}.{position}.fa.gz',
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'transcript_seqs', '{group}.{position}.tsv')
     shell:
         'gffread {input.gff3} -g {input.ref_genome} -w - | bgzip -c > {output}'
 
@@ -112,6 +128,8 @@ rule alt_TSS_polyA_kallisto_index:
         ref_dir / 'txrevise' / 'txrevise.{group}.{position}.idx',
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'kallisto_index', '{group}.{position}.tsv')
     shell:
         'kallisto index --index {output} {input}'
 
@@ -132,6 +150,8 @@ rule alt_TSS_polyA_kallisto:
     threads: 16
     resources:
         runtime = '16h',
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'kallisto', '{group}.{position}', '{sample_id}.tsv')
     shell:
         """
         mkdir -p {params.alt_group_pos_dir}
@@ -162,6 +182,8 @@ rule assemble_alt_TSS_polyA_bed:
         alt_group2_pos_dir = lambda w: str(interm_dir / 'alt_TSS_polyA' / f"grp_2.{dict(TSS='upstream', polyA='downstream')[w.type]}"),
     resources:
         mem_mb = 32000,
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'assemble_{type}.tsv')
     shell:
         """
         mkdir -p {params.unnorm_dir}
@@ -182,6 +204,8 @@ rule normalize_alt_TSS_polyA:
         output_dir / 'alt_{type}.bed.gz',
     params:
         bed = str(output_dir / 'alt_{type}.bed'),
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'normalize_{type}.tsv')
     shell:
         """
         mkdir -p {output_dir}
@@ -198,6 +222,8 @@ rule pheno_groups_alt_TSS_polyA:
         output_dir / 'alt_{type}.bed.gz',
     output:
         output_dir / 'alt_{type}.phenotype_groups.txt',
+    benchmark:
+        benchmark_path('pantry', 'alt_TSS_polyA', 'phenotype_groups_{type}.tsv')
     shell:
         """
         zcat < {input} \
