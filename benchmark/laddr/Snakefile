@@ -24,11 +24,51 @@ if 'directory' in config['input']['coverage']:
     sample_table['path'] = sample_table['path'].apply(lambda p: str(covg_dir / p))
 
 datasets = sample_table['dataset'].unique().tolist()
+samples = sample_table['sample'].unique().tolist()
+
+
+def get_n_batches() -> int:
+    setup_output = checkpoints.laddr_setup.get()
+    with open(setup_output.output.n_batches, 'r') as fh:
+        return int(fh.read().strip())
+
+
+def batch_indices():
+    return range(get_n_batches())
+
+
+def transform_covg_inputs(wildcards):
+    return expand(
+        str(working_dir / 'covg_norm' / wildcards.dataset / 'batch_{batch}.npy'),
+        batch=batch_indices(),
+    )
+
+
+def transform_covg_bin_inputs(wildcards):
+    return expand(
+        str(working_dir / 'covg_norm' / wildcards.dataset / 'batch_{batch}.bins.tsv.gz'),
+        batch=batch_indices(),
+    )
+
+
+def transform_model_inputs(wildcards):
+    return expand(
+        str(working_dir / 'models' / 'models_batch_{batch}.pickle'),
+        batch=batch_indices(),
+    )
+
+
+def all_outputs(wildcards):
+    checkpoints.laddr_setup.get()
+    return expand(
+        str(working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz'),
+        dataset=datasets,
+    )
 
 
 rule all:
     input:
-        expand(working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz', dataset=datasets),
+        all_outputs,
 
 
 rule bam_to_bigwig:
@@ -39,8 +79,10 @@ rule bam_to_bigwig:
         bw=working_dir / 'covg_bigwig' / '{sample}.bw',
     benchmark:
         benchmark_path('bigwig', '{sample}.tsv')
-    conda: 'laddr'
     threads: 16
+    resources:
+        mem_mb=32000,
+        runtime='8h',
     shell:
         """
         mkdir -p {working_dir}/covg_bigwig
@@ -48,7 +90,7 @@ rule bam_to_bigwig:
         """
 
 
-rule laddr_setup:
+checkpoint laddr_setup:
     input:
         config='config.yaml',
         manifest='coverage_manifest.tsv',
@@ -61,7 +103,9 @@ rule laddr_setup:
         var_per_bin=working_dir / 'info' / 'var_per_bin.txt',
     benchmark:
         benchmark_path('setup.tsv')
-    conda: 'laddr'
+    resources:
+        mem_mb=32000,
+        runtime='12h',
     shell:
         """
         laddr setup -p {working_dir} -c {input.config}
@@ -70,66 +114,77 @@ rule laddr_setup:
 
 rule laddr_binning:
     input:
-        config='config.yaml',
-        setup=rules.laddr_setup.output,
-        bw=sample_table['path'].tolist(),
+        genes=lambda w: checkpoints.laddr_setup.get().output.genes,
+        exons=lambda w: checkpoints.laddr_setup.get().output.exons,
+        var_per_bin=lambda w: checkpoints.laddr_setup.get().output.var_per_bin,
     output:
-        done=touch(working_dir / 'gene_bins' / '.done'),
+        beds=working_dir / 'gene_bins' / 'batch_{batch}.bed.gz',
     benchmark:
-        benchmark_path('binning.tsv')
-    conda: 'laddr'
+        benchmark_path('binning', '{batch}.tsv')
+    resources:
+        mem_mb=32000,
+        runtime='24h',
     shell:
         """
-        laddr binning -p {working_dir} -c {input.config}
-        touch {output.done}
+        laddr binning -p {working_dir} -c config.yaml -b {wildcards.batch}
         """
 
 
 rule laddr_coverage:
     input:
-        config='config.yaml',
-        bins=rules.laddr_binning.output.done,
-        median_covg=working_dir / 'info' / 'median_coverage.txt',
-        bw=sample_table['path'].tolist(),
+        bw=lambda w: sample_table.loc[sample_table['dataset'] == w.dataset, 'path'].tolist(),
+        bins=working_dir / 'gene_bins' / 'batch_{batch}.bed.gz',
+        median_covg=lambda w: checkpoints.laddr_setup.get().output.median_covg,
     output:
-        done=touch(working_dir / 'covg_norm' / '.done'),
+        covg=working_dir / 'covg_norm' / '{dataset}' / 'batch_{batch}.npy',
+        covg_norm_bins=working_dir / 'covg_norm' / '{dataset}' / 'batch_{batch}.bins.tsv.gz',
     benchmark:
-        benchmark_path('coverage.tsv')
-    conda: 'laddr'
+        benchmark_path('coverage', '{dataset}.batch_{batch}.tsv')
+    resources:
+        mem_mb=32000,
+        runtime='12h',
     shell:
         """
-        laddr coverage -p {working_dir} -c {input.config}
-        touch {output.done}
+        laddr coverage -p {working_dir} -c config.yaml -d {wildcards.dataset} -b {wildcards.batch}
         """
 
 
 rule laddr_fit:
     input:
-        config='config.yaml',
-        coverage=rules.laddr_coverage.output.done,
+        covg_norm=expand(
+            str(working_dir / 'covg_norm' / '{dataset}' / 'batch_{{batch}}.npy'),
+            dataset=datasets,
+        ),
+        covg_norm_bins=expand(
+            str(working_dir / 'covg_norm' / '{dataset}' / 'batch_{{batch}}.bins.tsv.gz'),
+            dataset=datasets,
+        ),
     output:
-        done=touch(working_dir / 'models' / '.done'),
+        models=working_dir / 'models' / 'models_batch_{batch}.pickle',
     benchmark:
-        benchmark_path('fit.tsv')
-    conda: 'laddr'
+        benchmark_path('fit', '{batch}.tsv')
+    resources:
+        mem_mb=32000,
+        runtime='12h',
     shell:
         """
-        laddr fit -p {working_dir} -c {input.config}
-        touch {output.done}
+        laddr fit -p {working_dir} -c config.yaml -b {wildcards.batch}
         """
 
 
 rule laddr_transform:
     input:
-        config='config.yaml',
-        coverage=rules.laddr_coverage.output.done,
-        fit=rules.laddr_fit.output.done,
+        covg_norm=transform_covg_inputs,
+        covg_norm_bins=transform_covg_bin_inputs,
+        models=transform_model_inputs,
     output:
         phenos=working_dir / 'phenotypes' / 'latent_phenos.{dataset}.tsv.gz',
     benchmark:
         benchmark_path('transform', '{dataset}.tsv')
-    conda: 'laddr'
+    resources:
+        mem_mb=32000,
+        runtime='12h',
     shell:
         """
-        laddr transform -p {working_dir} -c {input.config} -d {wildcards.dataset}
+        laddr transform -p {working_dir} -c config.yaml -d {wildcards.dataset}
         """

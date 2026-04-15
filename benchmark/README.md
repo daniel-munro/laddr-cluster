@@ -36,3 +36,9 @@ Outputs:
 
 - raw benchmark files under `benchmarks/`
 - summary table at `benchmarks/benchmark_summary.tsv`
+
+The summary table reports:
+
+- `runtime_seconds`: summed wall-clock job time
+- `cpu_time_seconds`: summed CPU time from Snakemake benchmark files
+- `max_threads`: maximum threads used by any rule included in that component

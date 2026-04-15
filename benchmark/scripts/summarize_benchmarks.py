@@ -48,27 +48,31 @@ def benchmark_max_rss_mb(row):
             value = to_float(row[key])
             if value is None:
                 return None
-            if key == "max_rss":
-                return value / 1024
             return value
+    return None
+
+
+def benchmark_cpu_time_seconds(row):
+    for key in ("cpu_time",):
+        if key in row:
+            return to_float(row[key])
     return None
 
 
 def sum_component(paths):
     total_seconds = 0.0
+    total_cpu_seconds = 0.0
     max_rss_mb = None
     for path in paths:
         row = read_benchmark(path)
         total_seconds += benchmark_seconds(row)
+        cpu_time = benchmark_cpu_time_seconds(row)
+        if cpu_time is not None:
+            total_cpu_seconds += cpu_time
         rss = benchmark_max_rss_mb(row)
         if rss is not None:
             max_rss_mb = rss if max_rss_mb is None else max(max_rss_mb, rss)
-    return total_seconds, max_rss_mb
-
-
-def one_component(path):
-    row = read_benchmark(path)
-    return benchmark_seconds(row), benchmark_max_rss_mb(row)
+    return total_seconds, total_cpu_seconds, max_rss_mb
 
 
 def glob_component(base_dir, *patterns):
@@ -83,8 +87,9 @@ def write_table(path, rows, delimiter):
         "method",
         "component",
         "samples",
-        "threads",
+        "max_threads",
         "runtime_seconds",
+        "cpu_time_seconds",
         "max_rss_mb",
         "notes",
     ]
@@ -107,53 +112,44 @@ def main():
     bigwig_paths = glob_component(benchmark_dir, "laddr/bigwig/*.tsv")
 
     pantry_components = [
-        ("alt_TSS/alt_polyA", glob_component(benchmark_dir, "pantry/alt_TSS_polyA/**/*.tsv")),
-        ("expression/isoforms", glob_component(benchmark_dir, "pantry/expression/**/*.tsv")),
-        ("splicing", glob_component(benchmark_dir, "pantry/splicing/**/*.tsv")),
-        ("stability", glob_component(benchmark_dir, "pantry/stability/**/*.tsv")),
-        ("bam shrinking", glob_component(benchmark_dir, "alignment/shrink_bam/*.tsv")),
+        ("alt_TSS/alt_polyA", 16, glob_component(benchmark_dir, "pantry/alt_TSS_polyA/**/*.tsv")),
+        ("expression/isoforms", 16, glob_component(benchmark_dir, "pantry/expression/**/*.tsv")),
+        ("splicing", 1, glob_component(benchmark_dir, "pantry/splicing/**/*.tsv")),
+        ("stability", 8, glob_component(benchmark_dir, "pantry/stability/**/*.tsv")),
+        ("bam shrinking", 1, glob_component(benchmark_dir, "pantry/shrink_bam/*.tsv")),
     ]
     laddr_components = [
-        ("laddr setup", [benchmark_dir / "laddr" / "setup.tsv"]),
-        ("laddr binning", [benchmark_dir / "laddr" / "binning.tsv"]),
-        ("laddr coverage", [benchmark_dir / "laddr" / "coverage.tsv"]),
-        ("laddr fit", [benchmark_dir / "laddr" / "fit.tsv"]),
-        ("laddr transform", glob_component(benchmark_dir, "laddr/transform/*.tsv")),
+        ("bamCoverage", 16, glob_component(benchmark_dir, "laddr/bigwig/*.tsv")),
+        ("laddr setup", 1, [benchmark_dir / "laddr" / "setup.tsv"]),
+        ("laddr binning", 1, glob_component(benchmark_dir, "laddr/binning/*.tsv")),
+        ("laddr coverage", 1, glob_component(benchmark_dir, "laddr/coverage/*.tsv")),
+        ("laddr fit", 1, glob_component(benchmark_dir, "laddr/fit/*.tsv")),
+        ("laddr transform", 1, glob_component(benchmark_dir, "laddr/transform/*.tsv")),
     ]
 
     rows = []
 
-    alignment_seconds, alignment_rss = sum_component(alignment_paths)
+    alignment_seconds, alignment_cpu_seconds, alignment_rss = sum_component(alignment_paths)
     rows.append(
         {
             "method": "shared",
             "component": "alignment",
             "samples": args.samples,
-            "threads": "",
+            "max_threads": 16,
             "runtime_seconds": round_or_blank(alignment_seconds),
+            "cpu_time_seconds": round_or_blank(alignment_cpu_seconds),
             "max_rss_mb": round_or_blank(alignment_rss),
             "notes": "Sum of STAR alignment and BAM indexing across samples.",
         }
     )
 
-    bigwig_seconds, bigwig_rss = sum_component(bigwig_paths)
-    rows.append(
-        {
-            "method": "LaDDR",
-            "component": "bamCoverage",
-            "samples": args.samples,
-            "threads": args.bigwig_threads,
-            "runtime_seconds": round_or_blank(bigwig_seconds),
-            "max_rss_mb": round_or_blank(bigwig_rss),
-            "notes": "Sum of per-sample bigWig generation from Pantry BAMs.",
-        }
-    )
-
     pantry_total = 0.0
+    pantry_total_cpu = 0.0
     pantry_total_rss = None
-    for component, paths in pantry_components:
-        seconds, rss = sum_component(paths)
+    for component, max_threads, paths in pantry_components:
+        seconds, cpu_seconds, rss = sum_component(paths)
         pantry_total += seconds
+        pantry_total_cpu += cpu_seconds
         if rss is not None:
             pantry_total_rss = rss if pantry_total_rss is None else max(pantry_total_rss, rss)
         rows.append(
@@ -161,8 +157,9 @@ def main():
                 "method": "Pantry",
                 "component": component,
                 "samples": args.samples,
-                "threads": args.pantry_threads,
+                "max_threads": max_threads,
                 "runtime_seconds": round_or_blank(seconds),
+                "cpu_time_seconds": round_or_blank(cpu_seconds),
                 "max_rss_mb": round_or_blank(rss),
                 "notes": "",
             }
@@ -173,18 +170,21 @@ def main():
             "method": "Pantry",
             "component": "Pantry total",
             "samples": args.samples,
-            "threads": args.pantry_threads,
+            "max_threads": 16,
             "runtime_seconds": round_or_blank(pantry_total),
+            "cpu_time_seconds": round_or_blank(pantry_total_cpu),
             "max_rss_mb": round_or_blank(pantry_total_rss),
             "notes": "Sum of Pantry alignment-adjacent shrinking plus modality-group benchmark runs.",
         }
     )
 
     laddr_total = 0.0
+    laddr_total_cpu = 0.0
     laddr_total_rss = None
-    for component, paths in laddr_components:
-        seconds, rss = sum_component(paths)
+    for component, max_threads, paths in laddr_components:
+        seconds, cpu_seconds, rss = sum_component(paths)
         laddr_total += seconds
+        laddr_total_cpu += cpu_seconds
         if rss is not None:
             laddr_total_rss = rss if laddr_total_rss is None else max(laddr_total_rss, rss)
         rows.append(
@@ -192,8 +192,9 @@ def main():
                 "method": "LaDDR",
                 "component": component,
                 "samples": args.samples,
-                "threads": "",
+                "max_threads": max_threads,
                 "runtime_seconds": round_or_blank(seconds),
+                "cpu_time_seconds": round_or_blank(cpu_seconds),
                 "max_rss_mb": round_or_blank(rss),
                 "notes": "",
             }
@@ -204,8 +205,9 @@ def main():
             "method": "LaDDR",
             "component": "LaDDR total",
             "samples": args.samples,
-            "threads": "",
+            "max_threads": 16,
             "runtime_seconds": round_or_blank(laddr_total),
+            "cpu_time_seconds": round_or_blank(laddr_total_cpu),
             "max_rss_mb": round_or_blank(laddr_total_rss),
             "notes": "Sum of LaDDR bamCoverage, setup, binning, coverage, fit, and transform.",
         }

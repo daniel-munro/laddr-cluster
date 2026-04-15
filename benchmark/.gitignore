@@ -4,6 +4,8 @@ pantry/output
 pantry/scripts
 laddr/covg_bigwig
 laddr/covg_norm
+laddr/gene_bins
+laddr/info
 laddr/models
 laddr/phenotypes
 benchmarks/
