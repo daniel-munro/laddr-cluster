@@ -1,0 +1,9 @@
+discovery_qtl: ../pheast/gtextcga-full/output/qtl/LCL-latent.cis_independent_qtl.txt.gz
+
+target_bed: ../pheast/geuvadis/input/phenotypes/gtextcga-full-Geuvadis-latent.bed.gz
+target_covar: ../pheast/geuvadis/intermediate/covar/gtextcga-full-Geuvadis-latent.covar.tsv
+target_cis_qtl: ../pheast/geuvadis/output/qtl/gtextcga-full-Geuvadis-latent.cis_qtl.txt.gz
+target_geno_prefix: ../data/geuvadis/geno/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.chr1-22
+
+cis_nominal_prefix: LCL_ddp_replication
+analysis_name: gtextcga-full_LCL_ddp_in_geuvadis

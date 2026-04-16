@@ -1,0 +1,115 @@
+from pathlib import Path
+
+
+configfile: "config.yaml"
+
+working_dir = Path(".")
+interm_dir = working_dir / "intermediate"
+output_dir = working_dir / "output"
+
+DISCOVERY_QTL = Path(config["discovery_qtl"])
+TARGET_BED = Path(config["target_bed"])
+TARGET_COVAR = Path(config["target_covar"])
+TARGET_CIS_QTL = Path(config["target_cis_qtl"])
+TARGET_GENO_PREFIX = config["target_geno_prefix"]
+CIS_NOMINAL_PREFIX = config["cis_nominal_prefix"]
+ANALYSIS_NAME = config["analysis_name"]
+
+
+rule all:
+    input:
+        output_dir / f"{ANALYSIS_NAME}.tsv.gz",
+
+
+rule prepare_replication_pairs:
+    input:
+        qtl = DISCOVERY_QTL,
+    output:
+        pairs = interm_dir / "pairs.tsv.gz",
+        phenotypes = interm_dir / "phenotype_ids.txt",
+    shell:
+        """
+        mkdir -p {interm_dir}
+        python3 scripts/prepare_ddp_replication.py \
+            --input {input.qtl} \
+            --pairs-out {output.pairs} \
+            --phenotypes-out {output.phenotypes}
+        """
+
+
+rule subset_target_bed:
+    input:
+        bed = TARGET_BED,
+        phenotypes = rules.prepare_replication_pairs.output.phenotypes,
+    output:
+        bed = interm_dir / "target_subset.bed.gz",
+    params:
+        uncompressed = interm_dir / "target_subset.bed",
+    resources:
+        mem_mb = 32000,
+    shell:
+        """
+        python3 scripts/subset_phenotype_bed.py \
+            --input-bed {input.bed} \
+            --phenotypes {input.phenotypes} \
+            --output-bed {params.uncompressed}
+        bgzip -f {params.uncompressed}
+        """
+
+
+rule subset_target_bed_index:
+    input:
+        bed = rules.subset_target_bed.output.bed,
+    output:
+        tbi = interm_dir / "target_subset.bed.gz.tbi",
+    shell:
+        "tabix -f -p bed {input.bed}"
+
+
+rule tensorqtl_cis_nominal:
+    input:
+        geno = multiext(TARGET_GENO_PREFIX, ".bed", ".bim", ".fam"),
+        bed = rules.subset_target_bed.output.bed,
+        bedi = rules.subset_target_bed_index.output.tbi,
+        covar = TARGET_COVAR,
+    output:
+        nominal_dir = directory(interm_dir / "cis_nominal"),
+    params:
+        geno_prefix = TARGET_GENO_PREFIX,
+        prefix = CIS_NOMINAL_PREFIX,
+    resources:
+        runtime = "12h",
+        mem_mb = lambda w, attempt: 32000 * 2 ** (attempt - 1),
+    retries: 2
+    shell:
+        """
+        mkdir -p {output.nominal_dir}
+        python3 ../pheast/geuvadis/scripts/run_tensorqtl.py \
+            {params.geno_prefix} \
+            {input.bed} \
+            {params.prefix} \
+            --covariates {input.covar} \
+            --output_dir {output.nominal_dir} \
+            --mode cis_nominal
+        """
+
+
+rule collect_replication_table:
+    input:
+        pairs = rules.prepare_replication_pairs.output.pairs,
+        nominal_dir = rules.tensorqtl_cis_nominal.output.nominal_dir,
+        thresholds = TARGET_CIS_QTL,
+    output:
+        output_dir / f"{ANALYSIS_NAME}.tsv.gz",
+    params:
+        prefix = CIS_NOMINAL_PREFIX,
+    shell:
+        """
+        mkdir -p {output_dir}
+        python3 scripts/extract_ddp_replication_nominal.py \
+            --pairs {input.pairs} \
+            --nominal-dir {input.nominal_dir} \
+            --thresholds {input.thresholds} \
+            --prefix {params.prefix} \
+            --out {output}
+        """

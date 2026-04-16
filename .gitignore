@@ -56,6 +56,11 @@ seqsim/latent/*/*
 !seqsim/latent/*/Snakefile
 seqsim/qtl/*
 !seqsim/qtl/config.yml
+xqtl_replication/intermediate
+xqtl_replication/output
+!xqtl_replication/config.yaml
+!xqtl_replication/Snakefile
+!xqtl_replication/scripts/*
 twas/*
 !twas/scripts
 !twas/Snakefile
@@ -66,3 +71,4 @@ twas_example/weights
 twas_examples/example_data
 twas_examples/intermediate
 twas_old
+__pycache__
