@@ -1,0 +1,12 @@
+qtl_susie: ../finemap/output/cis_susie.all_tissues.tsv.gz
+finngen_dir: ../data/finngen_finemap
+finngen_traits: ../data/finngen_finemap/traits.txt
+finngen_summary_dir: ../data/finngen_finemap/summary
+
+# Leave empty to include all phenotype IDs in the QTL SuSiE table.
+qtl_phenotype_prefixes: []
+
+require_finngen_good_cs: true
+min_cs_overlap: 1
+clpp_threshold: 0.01
+clpa_threshold: 0.5

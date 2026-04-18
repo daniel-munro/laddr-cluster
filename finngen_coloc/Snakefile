@@ -1,0 +1,85 @@
+from pathlib import Path
+
+
+SNAKEFILE_DIR = Path(workflow.basedir).resolve()
+
+configfile: str(SNAKEFILE_DIR / "config.yaml")
+
+
+def config_path(key):
+    path = Path(config[key])
+    if not path.is_absolute():
+        path = SNAKEFILE_DIR / path
+    return path.resolve()
+
+
+QTL_SUSIE = config_path("qtl_susie")
+FINNGEN_DIR = config_path("finngen_dir")
+FINNGEN_TRAITS = config_path("finngen_traits")
+FINNGEN_SUMMARY_DIR = config_path("finngen_summary_dir")
+OUTPUT_DIR = SNAKEFILE_DIR / "output"
+
+with open(FINNGEN_TRAITS, "r") as fh:
+    finngen_traits = [line.strip() for line in fh if line.strip()]
+
+if not finngen_traits:
+    raise ValueError(f"No FinnGen traits listed in {FINNGEN_TRAITS}.")
+
+if len(finngen_traits) != len(set(finngen_traits)):
+    raise ValueError(f"Duplicate FinnGen traits listed in {FINNGEN_TRAITS}.")
+
+
+rule all:
+    input:
+        OUTPUT_DIR / "coloc.clpp.tsv.gz",
+        OUTPUT_DIR / "coloc.clpp_99.tsv.gz",
+        OUTPUT_DIR / "coloc.significant.tsv.gz",
+        OUTPUT_DIR / "summary_by_trait.tsv",
+        OUTPUT_DIR / "summary_by_phenotype_class.tsv",
+
+
+rule finngen_coloc:
+    input:
+        qtl_susie=QTL_SUSIE,
+        traits=FINNGEN_TRAITS,
+        finngen_snps=expand(
+            str(FINNGEN_SUMMARY_DIR / "finngen_R12_{trait}.SUSIE_extend.snp.filter.tsv"),
+            trait=finngen_traits,
+        ),
+        finngen_cred=expand(
+            str(FINNGEN_SUMMARY_DIR / "finngen_R12_{trait}.SUSIE_extend.cred.summary.tsv"),
+            trait=finngen_traits,
+        ),
+    output:
+        primary=OUTPUT_DIR / "coloc.clpp.tsv.gz",
+        sensitivity=OUTPUT_DIR / "coloc.clpp_99.tsv.gz",
+        significant=OUTPUT_DIR / "coloc.significant.tsv.gz",
+        summary_trait=OUTPUT_DIR / "summary_by_trait.tsv",
+        summary_class=OUTPUT_DIR / "summary_by_phenotype_class.tsv",
+    params:
+        phenotype_prefixes=",".join(config.get("qtl_phenotype_prefixes", [])),
+        require_finngen_good_cs=str(config.get("require_finngen_good_cs", True)),
+        min_cs_overlap=config.get("min_cs_overlap", 1),
+        clpp_threshold=config.get("clpp_threshold", 0.01),
+        clpa_threshold=config.get("clpa_threshold", 0.5),
+        script=SNAKEFILE_DIR / "scripts" / "compute_finngen_coloc.py",
+        summary_dir=FINNGEN_SUMMARY_DIR,
+    resources:
+        mem_mb=32000,
+    shell:
+        """
+        python3 {params.script} \
+            --qtl-susie {input.qtl_susie} \
+            --traits {input.traits} \
+            --finngen-summary-dir {params.summary_dir} \
+            --out-primary {output.primary} \
+            --out-sensitivity {output.sensitivity} \
+            --out-significant {output.significant} \
+            --out-summary-trait {output.summary_trait} \
+            --out-summary-class {output.summary_class} \
+            --qtl-phenotype-prefixes "{params.phenotype_prefixes}" \
+            --require-finngen-good-cs "{params.require_finngen_good_cs}" \
+            --min-cs-overlap {params.min_cs_overlap} \
+            --clpp-threshold {params.clpp_threshold} \
+            --clpa-threshold {params.clpa_threshold}
+        """
