@@ -1,7 +1,14 @@
 qtl_susie: ../finemap/output/cis_susie.all_tissues.tsv.gz
-finngen_dir: ../data/finngen_finemap
-finngen_traits: ../data/finngen_finemap/traits.txt
-finngen_summary_dir: ../data/finngen_finemap/summary
+finngen_dir: ../data/finngen
+finngen_traits: ../data/finngen/traits.txt
+finngen_summary_dir: ../data/finngen/finemap
+finngen_summary_stats_dir: ../data/finngen/summary_stats
+
+coloc_examples: coloc_examples.tsv
+qtl_pheno_dir: ../pheast/gtex-residual/input/phenotypes
+qtl_covar_dir: ../pheast/gtex-residual/intermediate/covar
+qtl_geno_prefix: ../../pantry/GTEx/geno/gtex
+tensorqtl_runner: ../pheast/geuvadis/scripts/run_tensorqtl.py
 
 # Leave empty to include all phenotype IDs in the QTL SuSiE table.
 qtl_phenotype_prefixes: []

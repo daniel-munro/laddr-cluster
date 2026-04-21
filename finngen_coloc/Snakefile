@@ -1,4 +1,5 @@
 from pathlib import Path
+import csv
 
 
 SNAKEFILE_DIR = Path(workflow.basedir).resolve()
@@ -17,7 +18,14 @@ QTL_SUSIE = config_path("qtl_susie")
 FINNGEN_DIR = config_path("finngen_dir")
 FINNGEN_TRAITS = config_path("finngen_traits")
 FINNGEN_SUMMARY_DIR = config_path("finngen_summary_dir")
+FINNGEN_SUMMARY_STATS_DIR = config_path("finngen_summary_stats_dir")
+COLOC_EXAMPLES = config_path("coloc_examples")
+QTL_PHENO_DIR = config_path("qtl_pheno_dir")
+QTL_COVAR_DIR = config_path("qtl_covar_dir")
+QTL_GENO_PREFIX = config_path("qtl_geno_prefix")
+TENSORQTL_RUNNER = config_path("tensorqtl_runner")
 OUTPUT_DIR = SNAKEFILE_DIR / "output"
+INTERMEDIATE_DIR = SNAKEFILE_DIR / "intermediate"
 
 with open(FINNGEN_TRAITS, "r") as fh:
     finngen_traits = [line.strip() for line in fh if line.strip()]
@@ -28,6 +36,18 @@ if not finngen_traits:
 if len(finngen_traits) != len(set(finngen_traits)):
     raise ValueError(f"Duplicate FinnGen traits listed in {FINNGEN_TRAITS}.")
 
+with open(COLOC_EXAMPLES, "r") as fh:
+    example_rows = list(csv.DictReader(fh, delimiter="\t"))
+
+if not example_rows:
+    raise ValueError(f"No colocalization examples listed in {COLOC_EXAMPLES}.")
+
+example_tissues = sorted({row["tissue"] for row in example_rows})
+example_traits = sorted({row.get("finngen_trait", row.get("trait")) for row in example_rows})
+
+if any(not trait for trait in example_traits):
+    raise ValueError(f"Example table must contain trait or finngen_trait values in {COLOC_EXAMPLES}.")
+
 
 rule all:
     input:
@@ -36,6 +56,9 @@ rule all:
         OUTPUT_DIR / "coloc.significant.tsv.gz",
         OUTPUT_DIR / "summary_by_trait.tsv",
         OUTPUT_DIR / "summary_by_phenotype_class.tsv",
+        OUTPUT_DIR / "coloc_examples.annotated.tsv",
+        OUTPUT_DIR / "coloc_examples.qtl_region.tsv.gz",
+        OUTPUT_DIR / "coloc_examples.finngen_region.tsv.gz",
 
 
 rule finngen_coloc:
@@ -82,4 +105,116 @@ rule finngen_coloc:
             --min-cs-overlap {params.min_cs_overlap} \
             --clpp-threshold {params.clpp_threshold} \
             --clpa-threshold {params.clpa_threshold}
+        """
+
+
+rule subset_example_bed:
+    input:
+        examples=COLOC_EXAMPLES,
+        bed=QTL_PHENO_DIR / "{tissue}-cross_latent.bed.gz",
+    output:
+        bed=INTERMEDIATE_DIR / "examples" / "{tissue}.bed.gz",
+    params:
+        tissue="{tissue}",
+        uncompressed=lambda wildcards: INTERMEDIATE_DIR / "examples" / f"{wildcards.tissue}.bed",
+        script=SNAKEFILE_DIR / "scripts" / "subset_coloc_example_bed.py",
+    resources:
+        mem_mb=32000,
+    shell:
+        """
+        python3 {params.script} \
+            --examples {input.examples} \
+            --tissue {params.tissue} \
+            --input-bed {input.bed} \
+            --output-bed {params.uncompressed}
+        bgzip -f {params.uncompressed}
+        """
+
+
+rule index_example_bed:
+    input:
+        bed=rules.subset_example_bed.output.bed,
+    output:
+        tbi=INTERMEDIATE_DIR / "examples" / "{tissue}.bed.gz.tbi",
+    shell:
+        "tabix -f -p bed {input.bed}"
+
+
+rule tensorqtl_example_nominal:
+    input:
+        geno=multiext(str(QTL_GENO_PREFIX), ".bed", ".bim", ".fam"),
+        bed=rules.subset_example_bed.output.bed,
+        bedi=rules.index_example_bed.output.tbi,
+        covar=QTL_COVAR_DIR / "{tissue}-cross_latent.covar.tsv",
+    output:
+        nominal_dir=directory(INTERMEDIATE_DIR / "examples" / "cis_nominal" / "{tissue}"),
+    params:
+        tissue="{tissue}",
+        prefix="{tissue}_coloc_examples",
+        geno_prefix=QTL_GENO_PREFIX,
+        script=TENSORQTL_RUNNER,
+    conda: "pheast"
+    resources:
+        runtime="12h",
+        mem_mb=lambda w, attempt: 32000 * 2 ** (attempt - 1),
+    retries: 2
+    shell:
+        """
+        mkdir -p {output.nominal_dir}
+        python3 {params.script} \
+            {params.geno_prefix} \
+            {input.bed} \
+            {params.prefix} \
+            --covariates {input.covar} \
+            --output_dir {output.nominal_dir} \
+            --mode cis_nominal
+        """
+
+
+rule extract_coloc_examples:
+    input:
+        examples=COLOC_EXAMPLES,
+        coloc=rules.finngen_coloc.output.primary,
+        qtl_susie=QTL_SUSIE,
+        nominal_dirs=expand(
+            str(INTERMEDIATE_DIR / "examples" / "cis_nominal" / "{tissue}"),
+            tissue=example_tissues,
+        ),
+        finngen_snps=expand(
+            str(FINNGEN_SUMMARY_DIR / "finngen_R12_{trait}.SUSIE_extend.snp.filter.tsv"),
+            trait=example_traits,
+        ),
+        finngen_cred=expand(
+            str(FINNGEN_SUMMARY_DIR / "finngen_R12_{trait}.SUSIE_extend.cred.summary.tsv"),
+            trait=example_traits,
+        ),
+        finngen_sumstats=expand(
+            str(FINNGEN_SUMMARY_STATS_DIR / "finngen_R12_{trait}.gz"),
+            trait=example_traits,
+        ),
+        finngen_sumstats_tbi=expand(
+            str(FINNGEN_SUMMARY_STATS_DIR / "finngen_R12_{trait}.gz.tbi"),
+            trait=example_traits,
+        ),
+    output:
+        annotated=OUTPUT_DIR / "coloc_examples.annotated.tsv",
+        qtl_region=OUTPUT_DIR / "coloc_examples.qtl_region.tsv.gz",
+        finngen_region=OUTPUT_DIR / "coloc_examples.finngen_region.tsv.gz",
+    params:
+        script=SNAKEFILE_DIR / "scripts" / "extract_coloc_examples.py",
+        nominal_base=INTERMEDIATE_DIR / "examples" / "cis_nominal",
+        finngen_summary_dir=FINNGEN_SUMMARY_DIR,
+        finngen_sumstats_dir=FINNGEN_SUMMARY_STATS_DIR,
+    shell:
+        """
+        python3 {params.script} \
+            --examples {input.examples} \
+            --coloc {input.coloc} \
+            --qtl-susie {input.qtl_susie} \
+            --qtl-nominal-base {params.nominal_base} \
+            --finngen-summary-dir {params.finngen_summary_dir} \
+            --finngen-sumstats-dir {params.finngen_sumstats_dir} \
+            --out-annotated {output.annotated} \
+            --out-qtl-region {output.qtl_region} \
+            --out-finngen-region {output.finngen_region}
         """

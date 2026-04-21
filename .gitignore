@@ -12,6 +12,8 @@ compare/Homo_sapiens.GRCh38.113.chr.chrom.chr7.gtf
 !compare/Snakefile
 !compare/trial*/*/config.yaml
 finemap/output
+finngen_coloc/intermediate
+finngen_coloc/output
 phenos/*-models.tsv
 phenos/*/*
 !phenos/*/config.yaml
