@@ -1,0 +1,18 @@
+samples: ../../data/geuvadis/samples.txt
+bam_template: ../../pantry/phenos/GEUVADIS/intermediate/star_out/{sample}.Aligned.sortedByCoord.out.bam
+annotation_gff3: ref/gencode.v47.annotation.gff3.gz
+
+laddr_bed: ../pheast/geuvadis/input/phenotypes/geuvadis-residual-Geuvadis-latent.bed.gz
+laddr_groups: ../pheast/geuvadis/input/phenotypes/geuvadis-residual-Geuvadis-latent.phenotype_groups.txt
+xqtl_independent: ../pheast/geuvadis/output/qtl/geuvadis-residual-Geuvadis-latent.cis_independent_qtl.txt.gz
+twas_weights_archive: ../pheast/geuvadis/output/twas/geuvadis-residual-Geuvadis-latent.tar.bz2
+twas_hits: ../twas/output/twas_hits.geuvadis-residual-Geuvadis.tsv
+
+psicov_batch_size: 25
+threads: 16
+min_experiments: 0.01
+max_samples: null
+
+min_shared_samples: 100
+high_abs_spearman: 0.5
+high_spearman_fdr: 0.05

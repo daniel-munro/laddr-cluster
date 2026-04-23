@@ -1,0 +1,228 @@
+from math import ceil
+from pathlib import Path
+
+
+configfile: "config.yaml"
+
+working_dir = Path(".")
+samples_file = Path(config["samples"])
+bam_template = config["bam_template"]
+batch_size = int(config["psicov_batch_size"])
+threads = int(config["threads"])
+min_experiments = config["min_experiments"]
+
+with open(samples_file) as f:
+    samples = [line.strip() for line in f if line.strip()]
+
+max_samples = config.get("max_samples")
+if max_samples is not None:
+    samples = samples[: int(max_samples)]
+
+experiments = [f"{sample}.Aligned.sortedByCoord.out" for sample in samples]
+batches = list(range(ceil(len(samples) / batch_size)))
+
+
+def batch_samples(batch):
+    start = int(batch) * batch_size
+    return samples[start : start + batch_size]
+
+
+def batch_experiments(batch):
+    return [f"{sample}.Aligned.sortedByCoord.out" for sample in batch_samples(batch)]
+
+
+def batch_sj(wildcards):
+    return expand("build/{experiment}.sj", experiment=batch_experiments(wildcards.batch))
+
+
+localrules:
+    make_experiments_tsv,
+    summarize,
+
+
+rule all:
+    input:
+        "output/retained_intron_psi.tsv.gz",
+        "output/ir_laddr_correlations.tsv.gz",
+        "output/high_correlation_ir_laddr.tsv.gz",
+        "output/summary.tsv",
+        "output/summary.md",
+
+
+rule make_experiments_tsv:
+    input:
+        samples=samples_file,
+    output:
+        "input/experiments.tsv",
+    run:
+        Path(output[0]).parent.mkdir(parents=True, exist_ok=True)
+        with open(input.samples) as f, open(output[0], "w") as out:
+            out.write("group\tpath\n")
+            kept = 0
+            for line in f:
+                sample = line.strip()
+                if not sample:
+                    continue
+                if max_samples is not None and kept >= int(max_samples):
+                    break
+                out.write(f"Geuvadis\t{bam_template.format(sample=sample)}\n")
+                kept += 1
+
+
+rule majiq_build:
+    input:
+        gff3=config["annotation_gff3"],
+        experiments="input/experiments.tsv",
+    output:
+        splicegraph=directory("build/splicegraph.zarr"),
+        sj=[directory(f"build/{experiment}.sj") for experiment in experiments],
+    params:
+        outdir="build",
+        min_experiments=min_experiments,
+    conda: "majiq3"
+    threads: threads
+    resources:
+        mem_mb=64000,
+        runtime="12h",
+    shell:
+        """
+        majiq build \
+            --license ref/majiq_license_academic_official.lic \
+            --all-introns \
+            --min-experiments {params.min_experiments} \
+            --nthreads {threads} \
+            --overwrite \
+            {input.gff3} \
+            {input.experiments} \
+            {params.outdir}
+        """
+
+
+rule majiq_psi_coverage:
+    input:
+        splicegraph=rules.majiq_build.output.splicegraph,
+        sj=batch_sj,
+    output:
+        psicov=directory("psicov/batch_{batch}.psicov.zarr"),
+    params:
+        prefixes=lambda w: " ".join(batch_samples(w.batch)),
+    conda: "majiq3"
+    threads: threads
+    resources:
+        mem_mb=32000,
+    shell:
+        """
+        majiq psi-coverage \
+            --license ref/majiq_license_academic_official.lic \
+            --nthreads {threads} \
+            --prefixes {params.prefixes} \
+            --overwrite \
+            {input.splicegraph} \
+            {output.psicov} \
+            {input.sj}
+        """
+
+
+rule majiq_psi:
+    input:
+        splicegraph=rules.majiq_build.output.splicegraph,
+        psicov=expand("psicov/batch_{batch}.psicov.zarr", batch=batches),
+    output:
+        "output/majiq.psi.tsv",
+    threads: threads
+    conda: "majiq3"
+    resources:
+        mem_mb=64000,
+    shell:
+        """
+        mkdir -p output
+        majiq psi \
+            --license ref/majiq_license_academic_official.lic \
+            --splicegraph {input.splicegraph} \
+            --output-tsv {output} \
+            --quantiles 0.025 0.5 0.975 \
+            --nthreads {threads} \
+            --overwrite \
+            {input.psicov}
+        """
+
+
+rule extract_retained_introns:
+    input:
+        "output/majiq.psi.tsv",
+    output:
+        "output/retained_intron_psi.tsv.gz",
+    resources:
+        mem_mb=32000,
+    shell:
+        """
+        python3 scripts/extract_ir_psi.py \
+            --input {input} \
+            --output {output}
+        """
+
+
+rule correlate_ir_laddr:
+    input:
+        ir="output/retained_intron_psi.tsv.gz",
+        laddr=config["laddr_bed"],
+        groups=config["laddr_groups"],
+    output:
+        correlations="output/ir_laddr_correlations.tsv.gz",
+        high_pre="output/high_correlation_ir_laddr.unannotated.tsv.gz",
+    params:
+        min_shared=config["min_shared_samples"],
+        high_abs=config["high_abs_spearman"],
+        high_fdr=config["high_spearman_fdr"],
+    resources:
+        mem_mb=64000,
+    shell:
+        """
+        python3 scripts/correlate_ir_laddr.py \
+            --ir {input.ir} \
+            --laddr-bed {input.laddr} \
+            --laddr-groups {input.groups} \
+            --correlations-out {output.correlations} \
+            --high-out {output.high_pre} \
+            --min-shared-samples {params.min_shared} \
+            --high-abs-spearman {params.high_abs} \
+            --high-spearman-fdr {params.high_fdr}
+        """
+
+
+rule annotate_high_correlations:
+    input:
+        high="output/high_correlation_ir_laddr.unannotated.tsv.gz",
+        xqtl_independent=config["xqtl_independent"],
+        twas_archive=config["twas_weights_archive"],
+        twas_hits=config["twas_hits"],
+    output:
+        "output/high_correlation_ir_laddr.tsv.gz",
+    shell:
+        """
+        python3 scripts/annotate_hits.py \
+            --input {input.high} \
+            --xqtl-independent {input.xqtl_independent} \
+            --twas-weights-archive {input.twas_archive} \
+            --twas-hits {input.twas_hits} \
+            --output {output}
+        """
+
+
+rule summarize:
+    input:
+        ir="output/retained_intron_psi.tsv.gz",
+        correlations="output/ir_laddr_correlations.tsv.gz",
+        high="output/high_correlation_ir_laddr.tsv.gz",
+    output:
+        tsv="output/summary.tsv",
+        md="output/summary.md",
+    shell:
+        """
+        python3 scripts/summarize.py \
+            --ir {input.ir} \
+            --correlations {input.correlations} \
+            --high {input.high} \
+            --summary-tsv {output.tsv} \
+            --summary-md {output.md}
+        """
