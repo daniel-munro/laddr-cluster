@@ -77,8 +77,9 @@ def test_correlate_same_gene_only(tmp_path):
     correlate(
         Namespace(
             ir=str(ir),
-            laddr_bed=str(laddr),
-            laddr_groups=str(groups),
+            phenotype_bed=str(laddr),
+            phenotype_groups=str(groups),
+            phenotype_name="LaDDR",
             correlations_out=str(corr),
             high_out=str(high),
             min_shared_samples=3,

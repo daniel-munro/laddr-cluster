@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Correlate MAJIQ retained-intron PSI values with LaDDR phenotypes.
+"""Correlate MAJIQ retained-intron PSI values with same-gene phenotypes.
 
-For each gene, this script compares retained-intron PSI vectors against LaDDR
+For each gene, this script compares retained-intron PSI vectors against
 phenotype vectors from the same gene across shared samples. It writes all tested
 pairs with Pearson/Spearman correlations and a filtered table of high-confidence
 Spearman associations.
@@ -87,12 +87,20 @@ def correlate(args):
         ir["gene_id_base"] = ir["gene_id"].map(normalize_gene_id)
     ir_samples = sample_columns(ir.columns, IR_METADATA)
 
-    laddr_header = pd.read_csv(args.laddr_bed, sep="\t", nrows=0)
-    laddr_samples = [col for col in laddr_header.columns if col not in {"#chr", "chr", "start", "end", "phenotype_id"}]
-    shared_samples = [sample for sample in ir_samples if sample in set(laddr_samples)]
+    phenotype_name = getattr(args, "phenotype_name", "phenotype")
+    phenotype_bed = getattr(args, "phenotype_bed", None) or getattr(args, "laddr_bed")
+    phenotype_groups = getattr(args, "phenotype_groups", None) or getattr(args, "laddr_groups")
+
+    phenotype_header = pd.read_csv(phenotype_bed, sep="\t", nrows=0)
+    phenotype_samples = [
+        col
+        for col in phenotype_header.columns
+        if col not in {"#chr", "chr", "start", "end", "phenotype_id"}
+    ]
+    shared_samples = [sample for sample in ir_samples if sample in set(phenotype_samples)]
     if len(shared_samples) < args.min_shared_samples:
         raise ValueError(
-            f"Only {len(shared_samples)} shared samples between MAJIQ and LaDDR, "
+            f"Only {len(shared_samples)} shared samples between MAJIQ and {phenotype_name}, "
             f"less than --min-shared-samples={args.min_shared_samples}"
         )
 
@@ -104,10 +112,10 @@ def correlate(args):
         )
     ir_genes = set(ir_by_gene)
 
-    pheno_to_gene = read_groups(args.laddr_groups)
+    pheno_to_gene = read_groups(phenotype_groups)
     usecols = ["#chr", "start", "end", "phenotype_id", *shared_samples]
     records = []
-    chunks = pd.read_csv(args.laddr_bed, sep="\t", usecols=usecols, chunksize=args.chunksize)
+    chunks = pd.read_csv(phenotype_bed, sep="\t", usecols=usecols, chunksize=args.chunksize)
     for chunk in chunks:
         chunk["gene_id_base"] = chunk["phenotype_id"].map(pheno_to_gene)
         chunk = chunk.loc[chunk["gene_id_base"].isin(ir_genes)]
@@ -133,7 +141,8 @@ def correlate(args):
                             "ir_is_denovo": ir_row.get("is_denovo", pd.NA),
                             "ir_event_denovo": ir_row.get("event_denovo", pd.NA),
                             "phenotype_id": laddr_row["phenotype_id"],
-                            "laddr_gene_id": gene_id,
+                            "phenotype_gene_id": gene_id,
+                            "phenotype_set": phenotype_name,
                             "n_shared_samples": n,
                             "pearson_r": pearson_r,
                             "pearson_p": pearson_p,
@@ -155,7 +164,8 @@ def correlate(args):
                 "ir_is_denovo",
                 "ir_event_denovo",
                 "phenotype_id",
-                "laddr_gene_id",
+                "phenotype_gene_id",
+                "phenotype_set",
                 "n_shared_samples",
                 "pearson_r",
                 "pearson_p",
@@ -163,7 +173,7 @@ def correlate(args):
                 "spearman_p",
                 "pearson_fdr",
                 "spearman_fdr",
-                "best_laddr_match_for_ir",
+                "best_phenotype_match_for_ir",
             ]
         )
     else:
@@ -171,9 +181,13 @@ def correlate(args):
         out["spearman_fdr"] = bh_fdr(out["spearman_p"].to_numpy())
         out["abs_spearman_r"] = out["spearman_r"].abs()
         best = out.groupby("majiq_ir_id")["abs_spearman_r"].idxmax()
-        out["best_laddr_match_for_ir"] = False
-        out.loc[best.dropna().astype(int), "best_laddr_match_for_ir"] = True
+        out["best_phenotype_match_for_ir"] = False
+        out.loc[best.dropna().astype(int), "best_phenotype_match_for_ir"] = True
         out = out.drop(columns=["abs_spearman_r"])
+
+    if phenotype_name.lower() == "laddr":
+        out["laddr_gene_id"] = out["phenotype_gene_id"]
+        out["best_laddr_match_for_ir"] = out["best_phenotype_match_for_ir"]
 
     Path(args.correlations_out).parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(args.correlations_out, sep="\t", index=False, compression="infer")
@@ -189,7 +203,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "Test same-gene correlations between retained-intron PSI values "
-            "and LaDDR phenotype values across shared samples."
+            "and phenotype values across shared samples."
         )
     )
     parser.add_argument(
@@ -198,14 +212,23 @@ def main():
         help="Retained-intron PSI table from extract_ir_psi.py.",
     )
     parser.add_argument(
+        "--phenotype-bed",
         "--laddr-bed",
+        dest="phenotype_bed",
         required=True,
-        help="LaDDR phenotype BED table with phenotype_id and sample columns.",
+        help="Phenotype BED table with phenotype_id and sample columns.",
     )
     parser.add_argument(
+        "--phenotype-groups",
         "--laddr-groups",
+        dest="phenotype_groups",
         required=True,
         help="Two-column phenotype-to-gene mapping file used to restrict tests to same-gene pairs.",
+    )
+    parser.add_argument(
+        "--phenotype-name",
+        default="phenotype",
+        help="Label for the phenotype set written to the phenotype_set output column. Default: %(default)s.",
     )
     parser.add_argument(
         "--correlations-out",

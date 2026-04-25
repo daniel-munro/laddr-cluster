@@ -21,6 +21,13 @@ if max_samples is not None:
 experiments = [f"{sample}.Aligned.sortedByCoord.out" for sample in samples]
 batches = list(range(ceil(len(samples) / batch_size)))
 
+if Path("input/top_laddr_examples.tsv").exists():
+    with open("input/top_laddr_examples.tsv", "r") as f:
+        genes = [line.split("\t")[2] for line in f][1:]
+        example_phenotype_files = [f"output/example_phenotypes/inspect.{gene}.Geuvadis.tsv.gz" for gene in genes]
+else:
+    example_phenotype_files = []
+
 
 def batch_samples(batch):
     start = int(batch) * batch_size
@@ -38,6 +45,7 @@ def batch_sj(wildcards):
 localrules:
     make_experiments_tsv,
     summarize,
+    example_phenotype_info,
 
 
 rule all:
@@ -45,8 +53,11 @@ rule all:
         "output/retained_intron_psi.tsv.gz",
         "output/ir_laddr_correlations.tsv.gz",
         "output/high_correlation_ir_laddr.tsv.gz",
+        "output/ir_kdp_correlations.tsv.gz",
+        "output/high_correlation_ir_kdp.tsv.gz",
         "output/summary.tsv",
         "output/summary.md",
+        example_phenotype_files,
 
 
 rule make_experiments_tsv:
@@ -180,10 +191,40 @@ rule correlate_ir_laddr:
         """
         python3 scripts/correlate_ir_laddr.py \
             --ir {input.ir} \
-            --laddr-bed {input.laddr} \
-            --laddr-groups {input.groups} \
+            --phenotype-bed {input.laddr} \
+            --phenotype-groups {input.groups} \
+            --phenotype-name LaDDR \
             --correlations-out {output.correlations} \
             --high-out {output.high_pre} \
+            --min-shared-samples {params.min_shared} \
+            --high-abs-spearman {params.high_abs} \
+            --high-spearman-fdr {params.high_fdr}
+        """
+
+
+rule correlate_ir_kdp:
+    input:
+        ir="output/retained_intron_psi.tsv.gz",
+        kdp=config["kdp_bed"],
+        groups=config["kdp_groups"],
+    output:
+        correlations="output/ir_kdp_correlations.tsv.gz",
+        high="output/high_correlation_ir_kdp.tsv.gz",
+    params:
+        min_shared=config["min_shared_samples"],
+        high_abs=config["high_abs_spearman"],
+        high_fdr=config["high_spearman_fdr"],
+    resources:
+        mem_mb=64000,
+    shell:
+        """
+        python3 scripts/correlate_ir_laddr.py \
+            --ir {input.ir} \
+            --phenotype-bed {input.kdp} \
+            --phenotype-groups {input.groups} \
+            --phenotype-name KDP \
+            --correlations-out {output.correlations} \
+            --high-out {output.high} \
             --min-shared-samples {params.min_shared} \
             --high-abs-spearman {params.high_abs} \
             --high-spearman-fdr {params.high_fdr}
@@ -225,4 +266,20 @@ rule summarize:
             --high {input.high} \
             --summary-tsv {output.tsv} \
             --summary-md {output.md}
+        """
+
+
+rule example_phenotype_info:
+    output:
+        "output/example_phenotypes/inspect.{gene}.Geuvadis.tsv.gz",
+    params:
+        # pheno_dir="../phenos/geuvadis-residual",
+        # tmp_path="../phenos/geuvadis-residual/inspect/inspect.{gene}.Geuvadis.tsv.gz",
+        pheno_dir="input/laddr_for_examples",
+        tmp_path="input/laddr_for_examples/inspect/inspect.{gene}.Geuvadis.tsv.gz",
+    conda: "latent"
+    shell:
+        """
+        laddr inspect -p {params.pheno_dir} -d Geuvadis -g {wildcards.gene}
+        mv {params.tmp_path} {output}
         """
