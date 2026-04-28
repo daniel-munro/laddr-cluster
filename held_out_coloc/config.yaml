@@ -1,0 +1,24 @@
+modalities:
+  - alt_polyA
+  - alt_TSS
+  - expression
+  - isoforms
+  - splicing
+  - stability
+
+geno_prefix: ../data/geuvadis/geno/GEUVADIS.445_samples.GRCh38.20170504.maf01.filtered.nodup.chr1-22
+
+baseline:
+  phenotype_bed: ../pheast/geuvadis/input/phenotypes/geuvadis-residual-Geuvadis-cross_latent.bed.gz
+  covariates: ../pheast/geuvadis/intermediate/covar/geuvadis-residual-Geuvadis-cross_latent.covar.tsv
+  # Use cis_independent_qtl, or else it will only fine-map one phenotype per gene
+  cis_output: ../pheast/geuvadis/output/qtl/geuvadis-residual-Geuvadis-cross_latent.cis_independent_qtl.txt.gz
+
+held_out:
+  phenotype_bed_template: ../held_out/qtl/input/phenotypes/cross-no_{modality}.bed.gz
+  covariates_template: ../held_out/qtl/intermediate/covar/cross-no_{modality}.covar.tsv
+  # Use cis_independent_qtl, or else it will only fine-map one phenotype per gene
+  cis_output_template: ../held_out/qtl/output/qtl/cross-no_{modality}.cis_independent_qtl.txt.gz
+
+clpp_threshold: 0.01
+clpa_threshold: 0.5

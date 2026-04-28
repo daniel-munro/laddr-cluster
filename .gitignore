@@ -28,6 +28,7 @@ held_out/*/*/*
 !held_out/no_*/config.yaml
 !held_out/no_*/Snakefile
 !held_out/scripts/*
+held_out_coloc/output
 prune_anno/latent-*/*
 !prune_anno/latent-*/config.yaml
 !prune_anno/latent-*/coverage_manifest.tsv

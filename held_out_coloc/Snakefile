@@ -1,0 +1,174 @@
+from pathlib import Path
+
+
+SNAKEFILE_DIR = Path(workflow.basedir).resolve()
+
+configfile: str(SNAKEFILE_DIR / "config.yaml")
+
+
+def config_path(value):
+    path = Path(value)
+    if not path.is_absolute():
+        path = SNAKEFILE_DIR / path
+    return path.resolve()
+
+
+def config_template(value):
+    return str(config_path(value))
+
+
+MODALITIES = config["modalities"]
+GENO_PREFIX = config_path(config["geno_prefix"])
+OUTPUT_DIR = SNAKEFILE_DIR / "output"
+SCRIPT = SNAKEFILE_DIR / "scripts" / "compute_qtl_coloc.py"
+
+BASELINE_BED = config_path(config["baseline"]["phenotype_bed"])
+BASELINE_COVAR = config_path(config["baseline"]["covariates"])
+BASELINE_CIS = config_path(config["baseline"]["cis_output"])
+
+HELD_OUT_BED_TEMPLATE = config_template(config["held_out"]["phenotype_bed_template"])
+HELD_OUT_COVAR_TEMPLATE = config_template(config["held_out"]["covariates_template"])
+HELD_OUT_CIS_TEMPLATE = config_template(config["held_out"]["cis_output_template"])
+
+
+rule all:
+    input:
+        OUTPUT_DIR / "baseline.cis_susie.tsv.gz",
+        OUTPUT_DIR / "held_out.cis_susie.tsv.gz",
+        OUTPUT_DIR / "qtl_coloc.all.tsv.gz",
+        OUTPUT_DIR / "qtl_coloc.significant.tsv.gz",
+        OUTPUT_DIR / "summary_by_modality.tsv",
+
+
+rule baseline_cis_susie:
+    input:
+        geno=multiext(str(GENO_PREFIX), ".bed", ".bim", ".fam"),
+        bed=BASELINE_BED,
+        bedi=str(BASELINE_BED) + ".tbi",
+        covar=BASELINE_COVAR,
+        cis=BASELINE_CIS,
+    output:
+        pickle=OUTPUT_DIR / "baseline" / "baseline.SuSiE.pickle",
+        summary=OUTPUT_DIR / "baseline" / "baseline.SuSiE_summary.parquet",
+    params:
+        geno_prefix=GENO_PREFIX,
+        output_prefix=OUTPUT_DIR / "baseline" / "baseline",
+        output_dir=OUTPUT_DIR / "baseline",
+    conda: "pheast"
+    resources:
+        runtime="48h",
+        mem_mb=lambda w, attempt: 64000 * 2 ** (attempt - 1),
+        slurm_partition="gpu-core",
+        slurm_extra="'--gres=gpu:1'",
+    retries: 2
+    shell:
+        """
+        mkdir -p {params.output_dir}
+        python3 -m tensorqtl \
+            {params.geno_prefix} \
+            {input.bed} \
+            {params.output_prefix} \
+            --covariates {input.covar} \
+            --cis_output {input.cis} \
+            --mode cis_susie
+        """
+
+
+rule held_out_cis_susie:
+    input:
+        geno=multiext(str(GENO_PREFIX), ".bed", ".bim", ".fam"),
+        bed=HELD_OUT_BED_TEMPLATE,
+        bedi=HELD_OUT_BED_TEMPLATE + ".tbi",
+        covar=HELD_OUT_COVAR_TEMPLATE,
+        cis=HELD_OUT_CIS_TEMPLATE,
+    output:
+        pickle=OUTPUT_DIR / "held_out" / "{modality}.SuSiE.pickle",
+        summary=OUTPUT_DIR / "held_out" / "{modality}.SuSiE_summary.parquet",
+    params:
+        geno_prefix=GENO_PREFIX,
+        output_prefix=str(OUTPUT_DIR / "held_out" / "{modality}"),
+        output_dir=OUTPUT_DIR / "held_out",
+    conda: "pheast"
+    resources:
+        runtime="48h",
+        mem_mb=lambda w, attempt: 64000 * 2 ** (attempt - 1),
+        slurm_partition="gpu-core",
+        slurm_extra="'--gres=gpu:1'",
+    retries: 2
+    shell:
+        """
+        mkdir -p {params.output_dir}
+        python3 -m tensorqtl \
+            {params.geno_prefix} \
+            {input.bed} \
+            {params.output_prefix} \
+            --covariates {input.covar} \
+            --cis_output {input.cis} \
+            --mode cis_susie
+        """
+
+
+rule concat_baseline_susie:
+    input:
+        summary=rules.baseline_cis_susie.output.summary,
+    output:
+        tsv=OUTPUT_DIR / "baseline.cis_susie.tsv.gz",
+    run:
+        import pandas as pd
+
+        df = pd.read_parquet(input.summary)
+        df.insert(0, "held_out_modality", "baseline")
+        df.insert(0, "analysis", "baseline")
+        df["gene_id"] = df["phenotype_id"].str.split(":", n=1).str[1].str.split("__", n=1).str[0]
+        columns = ["analysis", "held_out_modality", "phenotype_id", "variant_id", "pip", "af", "cs_id", "gene_id"]
+        df.loc[:, columns].to_csv(output.tsv, sep="\t", index=False, compression="gzip")
+
+
+rule concat_held_out_susie:
+    input:
+        summaries=expand(OUTPUT_DIR / "held_out" / "{modality}.SuSiE_summary.parquet", modality=MODALITIES),
+    output:
+        tsv=OUTPUT_DIR / "held_out.cis_susie.tsv.gz",
+    run:
+        import pandas as pd
+
+        frames = []
+        for summary_path in input.summaries:
+            summary_path = Path(summary_path)
+            modality = summary_path.name.split(".SuSiE_summary.parquet", 1)[0]
+            df = pd.read_parquet(summary_path)
+            df.insert(0, "held_out_modality", modality)
+            df.insert(0, "analysis", "held_out")
+            df["gene_id"] = df["phenotype_id"].str.split(":", n=1).str[1].str.split("__", n=1).str[0]
+            frames.append(df)
+        all_df = pd.concat(frames, ignore_index=True)
+        columns = ["analysis", "held_out_modality", "phenotype_id", "variant_id", "pip", "af", "cs_id", "gene_id"]
+        all_df.loc[:, columns].to_csv(output.tsv, sep="\t", index=False, compression="gzip")
+
+
+rule qtl_coloc:
+    input:
+        baseline=rules.concat_baseline_susie.output.tsv,
+        held_out=rules.concat_held_out_susie.output.tsv,
+    output:
+        all=OUTPUT_DIR / "qtl_coloc.all.tsv.gz",
+        significant=OUTPUT_DIR / "qtl_coloc.significant.tsv.gz",
+        summary=OUTPUT_DIR / "summary_by_modality.tsv",
+    params:
+        modalities=",".join(MODALITIES),
+        clpp_threshold=config.get("clpp_threshold", 0.01),
+        clpa_threshold=config.get("clpa_threshold", 0.5),
+    resources:
+        mem_mb=32000,
+    shell:
+        """
+        python3 {SCRIPT} \
+            --baseline-susie {input.baseline} \
+            --held-out-susie {input.held_out} \
+            --modalities {params.modalities} \
+            --out-all {output.all} \
+            --out-significant {output.significant} \
+            --out-summary {output.summary} \
+            --clpp-threshold {params.clpp_threshold} \
+            --clpa-threshold {params.clpa_threshold}
+        """
