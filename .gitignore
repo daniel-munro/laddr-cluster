@@ -59,6 +59,7 @@ seqsim/latent/*/*
 !seqsim/latent/*/Snakefile
 seqsim/qtl/*
 !seqsim/qtl/config.yml
+stranded/runs
 xqtl_replication/intermediate
 xqtl_replication/output
 !xqtl_replication/config.yaml

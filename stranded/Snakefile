@@ -1,0 +1,323 @@
+from pathlib import Path
+
+configfile: "config.yaml"
+
+analysis_root = Path(".")
+samples = [line.strip() for line in open(config["samples_file"]) if line.strip()]
+analyses = config["analyses"]
+
+fastq_dir = Path(config["fastq_dir"])
+subset_fastq_dir = Path(config["subset_fastq_dir"])
+bam_dir = Path(config["bam_dir"])
+bigwig_dir = Path(config["bigwig_dir"])
+
+subset_read_pairs = config.get("subset_read_pairs")
+use_subset = subset_read_pairs not in [None, 0, "0", ""]
+
+
+def read1(sample):
+    directory = subset_fastq_dir if use_subset else fastq_dir
+    return directory / f"{sample}_1.fastq"
+
+
+def read2(sample):
+    directory = subset_fastq_dir if use_subset else fastq_dir
+    return directory / f"{sample}_2.fastq"
+
+
+def analysis_project(analysis):
+    return analysis_root / "runs" / analysis
+
+
+def analysis_config(analysis):
+    return analyses[analysis]["config"]
+
+
+def analysis_manifest(analysis):
+    return analyses[analysis]["manifest"]
+
+
+def analysis_bigwig_inputs(analysis):
+    if analyses[analysis]["stranded"]:
+        return expand(
+            str(bigwig_dir / "{sample}.{strand}.bw"),
+            sample=samples,
+            strand=["plus", "minus"],
+        )
+    return expand(str(bigwig_dir / "{sample}.bw"), sample=samples)
+
+
+def get_n_batches(analysis):
+    output = checkpoints.laddr_setup.get(analysis=analysis).output
+    with open(output.n_batches) as handle:
+        return int(handle.read().strip())
+
+
+def batch_indices(wildcards):
+    return range(get_n_batches(wildcards.analysis))
+
+
+def transform_covg_inputs(wildcards):
+    return expand(
+        str(analysis_project(wildcards.analysis) / "covg_norm" / "stranded_test" / "batch_{batch}.npy"),
+        batch=batch_indices(wildcards),
+    )
+
+
+def transform_covg_bin_inputs(wildcards):
+    return expand(
+        str(analysis_project(wildcards.analysis) / "covg_norm" / "stranded_test" / "batch_{batch}.bins.tsv.gz"),
+        batch=batch_indices(wildcards),
+    )
+
+
+def transform_model_inputs(wildcards):
+    return expand(
+        str(analysis_project(wildcards.analysis) / "models" / "models_batch_{batch}.pickle"),
+        batch=batch_indices(wildcards),
+    )
+
+wildcard_constraints:
+    sample="[A-Za-z0-9]+",
+
+
+rule all:
+    input:
+        expand(
+            str(analysis_root / "runs" / "{analysis}" / "phenotypes" / "latent_phenos.stranded_test.tsv.gz"),
+            analysis=list(analyses),
+        ),
+        analysis_root / "data" / "summary" / "analysis_summary.tsv",
+        analysis_root / "data" / "summary" / "coverage_by_sample.tsv",
+        analysis_root / "data" / "summary" / "phenotype_overlap.tsv",
+        analysis_root / "data" / "summary" / "phenotype_correlations.tsv",
+
+
+rule subset_fastq:
+    input:
+        r1=fastq_dir / "{sample}_1.fastq",
+        r2=fastq_dir / "{sample}_2.fastq",
+    output:
+        r1=subset_fastq_dir / "{sample}_1.fastq",
+        r2=subset_fastq_dir / "{sample}_2.fastq",
+    threads: 2
+    params:
+        seqtk=config["seqtk_bin"],
+        seed=config["subset_seed"],
+        n_reads=config["subset_read_pairs"],
+    resources:
+        mem_mb=4000,
+        runtime="2h",
+    shell:
+        """
+        mkdir -p {subset_fastq_dir}
+        {params.seqtk} sample -s{params.seed} {input.r1} {params.n_reads} > {output.r1}
+        {params.seqtk} sample -s{params.seed} {input.r2} {params.n_reads} > {output.r2}
+        """
+
+
+rule align_star:
+    input:
+        r1=lambda wildcards: read1(wildcards.sample),
+        r2=lambda wildcards: read2(wildcards.sample),
+    output:
+        bam=bam_dir / "{sample}.bam",
+        bai=bam_dir / "{sample}.bam.bai",
+    params:
+        star=config["star_bin"],
+        star_index=config["star_index"],
+        samtools=config["samtools_bin"],
+        prefix=lambda wildcards: str(bam_dir / f"{wildcards.sample}."),
+        tmp=lambda wildcards: str(bam_dir / f"{wildcards.sample}.tmp"),
+    conda: "pantry"
+    threads: config["star_threads"]
+    resources:
+        mem_mb=64000,
+        runtime="12h",
+    shell:
+        """
+        mkdir -p {bam_dir}
+        {params.star} \
+            --genomeDir {params.star_index} \
+            --readFilesIn {input.r1} {input.r2} \
+            --runThreadN {threads} \
+            --outSAMtype BAM SortedByCoordinate \
+            --outFileNamePrefix {params.prefix} \
+            --outTmpDir {params.tmp}
+        mv {params.prefix}Aligned.sortedByCoord.out.bam {output.bam}
+        {params.samtools} index -@ {threads} {output.bam}
+        """
+
+
+rule bigwig_unstranded:
+    input:
+        bam=bam_dir / "{sample}.bam",
+        bai=bam_dir / "{sample}.bam.bai",
+    output:
+        bw=bigwig_dir / "{sample}.bw",
+    threads: config["bigwig_threads"]
+    params:
+        bamcoverage=config["bamcoverage_bin"],
+    resources:
+        mem_mb=16000,
+        runtime="4h",
+    shell:
+        """
+        mkdir -p {bigwig_dir}
+        {params.bamcoverage} \
+            -b {input.bam} \
+            -o {output.bw} \
+            -of bigwig \
+            --binSize 1 \
+            -p {threads}
+        """
+
+
+rule bigwig_stranded:
+    input:
+        bam=bam_dir / "{sample}.bam",
+        bai=bam_dir / "{sample}.bam.bai",
+    output:
+        bw=bigwig_dir / "{sample}.{strand}.bw",
+    params:
+        bamcoverage=config["bamcoverage_bin"],
+        rna_strand=lambda wildcards: "forward" if wildcards.strand == "plus" else "reverse",
+    threads: config["bigwig_threads"]
+    resources:
+        mem_mb=16000,
+        runtime="4h",
+    shell:
+        """
+        mkdir -p {bigwig_dir}
+        {params.bamcoverage} \
+            -b {input.bam} \
+            -o {output.bw} \
+            -of bigwig \
+            --binSize 1 \
+            --filterRNAstrand {params.rna_strand} \
+            -p {threads}
+        """
+
+
+checkpoint laddr_setup:
+    input:
+        config=lambda wildcards: analysis_config(wildcards.analysis),
+        manifest=lambda wildcards: analysis_manifest(wildcards.analysis),
+        bw=lambda wildcards: analysis_bigwig_inputs(wildcards.analysis),
+    output:
+        genes=analysis_root / "runs" / "{analysis}" / "info" / "genes.tsv",
+        exons=analysis_root / "runs" / "{analysis}" / "info" / "exons.tsv.gz",
+        n_batches=analysis_root / "runs" / "{analysis}" / "info" / "n_batches.txt",
+        median_covg=analysis_root / "runs" / "{analysis}" / "info" / "median_coverage.txt",
+        var_per_bin=analysis_root / "runs" / "{analysis}" / "info" / "var_per_bin.txt",
+    resources:
+        mem_mb=32000,
+        runtime="12h",
+    params:
+        laddr=config["laddr_bin"],
+        project=lambda wildcards: analysis_project(wildcards.analysis),
+    shell:
+        """
+        {params.laddr} setup -p {params.project} -c {input.config}
+        """
+
+
+rule laddr_binning:
+    input:
+        genes=lambda wildcards: checkpoints.laddr_setup.get(analysis=wildcards.analysis).output.genes,
+        exons=lambda wildcards: checkpoints.laddr_setup.get(analysis=wildcards.analysis).output.exons,
+        var_per_bin=lambda wildcards: checkpoints.laddr_setup.get(analysis=wildcards.analysis).output.var_per_bin,
+    output:
+        bed=analysis_root / "runs" / "{analysis}" / "gene_bins" / "batch_{batch}.bed.gz",
+    resources:
+        mem_mb=32000,
+        runtime="12h",
+    params:
+        laddr=config["laddr_bin"],
+        project=lambda wildcards: analysis_project(wildcards.analysis),
+        config=lambda wildcards: analysis_config(wildcards.analysis),
+    shell:
+        """
+        {params.laddr} binning -p {params.project} -c {params.config} -b {wildcards.batch}
+        """
+
+
+rule laddr_coverage:
+    input:
+        bw=lambda wildcards: analysis_bigwig_inputs(wildcards.analysis),
+        bed=analysis_root / "runs" / "{analysis}" / "gene_bins" / "batch_{batch}.bed.gz",
+        median_covg=lambda wildcards: checkpoints.laddr_setup.get(analysis=wildcards.analysis).output.median_covg,
+    output:
+        covg=analysis_root / "runs" / "{analysis}" / "covg_norm" / "stranded_test" / "batch_{batch}.npy",
+        bins=analysis_root / "runs" / "{analysis}" / "covg_norm" / "stranded_test" / "batch_{batch}.bins.tsv.gz",
+    resources:
+        mem_mb=32000,
+        runtime="12h",
+    params:
+        laddr=config["laddr_bin"],
+        project=lambda wildcards: analysis_project(wildcards.analysis),
+        config=lambda wildcards: analysis_config(wildcards.analysis),
+    shell:
+        """
+        {params.laddr} coverage -p {params.project} -c {params.config} -d stranded_test -b {wildcards.batch}
+        """
+
+
+rule laddr_fit:
+    input:
+        covg=analysis_root / "runs" / "{analysis}" / "covg_norm" / "stranded_test" / "batch_{batch}.npy",
+        bins=analysis_root / "runs" / "{analysis}" / "covg_norm" / "stranded_test" / "batch_{batch}.bins.tsv.gz",
+    output:
+        model=analysis_root / "runs" / "{analysis}" / "models" / "models_batch_{batch}.pickle",
+    resources:
+        mem_mb=32000,
+        runtime="12h",
+    params:
+        laddr=config["laddr_bin"],
+        project=lambda wildcards: analysis_project(wildcards.analysis),
+        config=lambda wildcards: analysis_config(wildcards.analysis),
+    shell:
+        """
+        {params.laddr} fit -p {params.project} -c {params.config} -b {wildcards.batch}
+        """
+
+
+rule laddr_transform:
+    input:
+        covg=transform_covg_inputs,
+        bins=transform_covg_bin_inputs,
+        models=transform_model_inputs,
+    output:
+        phenos=analysis_root / "runs" / "{analysis}" / "phenotypes" / "latent_phenos.stranded_test.tsv.gz",
+    resources:
+        mem_mb=32000,
+        runtime="12h",
+    params:
+        laddr=config["laddr_bin"],
+        project=lambda wildcards: analysis_project(wildcards.analysis),
+        config=lambda wildcards: analysis_config(wildcards.analysis),
+    shell:
+        """
+        {params.laddr} transform -p {params.project} -c {params.config} -d stranded_test
+        """
+
+
+rule summarize_outputs:
+    input:
+        phenos=expand(
+            str(analysis_root / "runs" / "{analysis}" / "phenotypes" / "latent_phenos.stranded_test.tsv.gz"),
+            analysis=list(analyses),
+        ),
+        covg=expand(
+            str(analysis_root / "runs" / "{analysis}" / "covg_norm" / "stranded_test" / "samples.txt"),
+            analysis=list(analyses),
+        ),
+    output:
+        analysis=analysis_root / "data" / "summary" / "analysis_summary.tsv",
+        coverage=analysis_root / "data" / "summary" / "coverage_by_sample.tsv",
+        overlap=analysis_root / "data" / "summary" / "phenotype_overlap.tsv",
+        correlations=analysis_root / "data" / "summary" / "phenotype_correlations.tsv",
+    shell:
+        """
+        python scripts/summarize_stranded_outputs.py
+        """

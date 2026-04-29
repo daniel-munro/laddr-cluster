@@ -1,0 +1,35 @@
+samples_file: data/stranded_sra_runs.txt
+
+fastq_dir: data/fastq
+subset_fastq_dir: data/fastq_subset
+bam_dir: data/bam
+bigwig_dir: data/bigwig
+
+# Number of read pairs per sample to keep for this test.
+# Set to 0 or null to align the full FASTQs.
+subset_read_pairs: 1000000
+subset_seed: 504
+
+star_index: /data/hps/home/dmunro/tools/Pantry/phenotyping/intermediate/reference/star_index_75
+star_bin: /data/hps/assoc/private/gdml/user/dmunro/miniforge3/envs/pantry/bin/STAR-avx2
+samtools_bin: /data/hps/assoc/private/gdml/user/dmunro/miniforge3/envs/pantry/bin/samtools
+bamcoverage_bin: /data/hps/assoc/private/gdml/user/dmunro/miniforge3/envs/pantry/bin/bamCoverage
+seqtk_bin: /data/hps/assoc/private/gdml/user/dmunro/miniforge3/bin/seqtk
+laddr_bin: /data/hps/assoc/private/gdml/user/dmunro/miniforge3/envs/pantry/bin/laddr
+
+star_threads: 8
+bigwig_threads: 4
+
+analyses:
+  unstranded:
+    config: configs/unstranded/config.yaml
+    manifest: data/coverage_manifest_unstranded.tsv
+    stranded: false
+  stranded:
+    config: configs/stranded/config.yaml
+    manifest: data/coverage_manifest_stranded.tsv
+    stranded: true
+  stranded_swapped:
+    config: configs/stranded_swapped/config.yaml
+    manifest: data/coverage_manifest_stranded_swapped.tsv
+    stranded: true
