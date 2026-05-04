@@ -25,6 +25,11 @@ rsync -a ../pheast/geuvadis/intermediate/twas/geuvadis-residual-Geuvadis-latent.
 
 gzip -c ../twas/output/twas_hits.geuvadis-full-Geuvadis.tsv > repo/geuvadis/ddp-GEUVADIS.twas_hits.tsv.gz
 gzip -c ../twas/output/twas_hits.geuvadis-residual-Geuvadis.tsv > repo/geuvadis/rddp-GEUVADIS.twas_hits.tsv.gz
+head -n1 ../../pantry/twas/output/twas_hits.GEUVADIS.alt_polyA.tsv | sed 's/^/MODALITY\t/' > repo/geuvadis/kdp-GEUVADIS.twas_hits.tsv
+for modality in alt_polyA alt_TSS expression isoforms splicing stability; do
+    tail -n+2 ../../pantry/twas/output/twas_hits.GEUVADIS.$modality.tsv | sed "s/^/$modality\t/" >> repo/geuvadis/kdp-GEUVADIS.twas_hits.tsv
+done
+gzip -f repo/geuvadis/kdp-GEUVADIS.twas_hits.tsv
 
 echo "=== GTEx ==="
 cat ../data/gtex/tissues.gtex.txt | while read tissue; do
@@ -49,12 +54,17 @@ done
 echo "=== GTEx TWAS ==="
 head -n1 ../twas/output/twas_hits.gtextcga-full-ADPSBQ.tsv | sed 's/^/TISSUE\t/' > repo/twas_hits.gtex-ddp.tsv
 head -n1 ../twas/output/twas_hits.gtex-residual-ADPSBQ.tsv | sed 's/^/TISSUE\t/' > repo/twas_hits.gtex-rddp.tsv
+head -n1 ../../pantry/twas/output/twas_hits.ADPSBQ.alt_polyA.tsv | sed 's/^/TISSUE\tMODALITY\t/' > repo/twas_hits.gtex-kdp.tsv
 cat ../data/gtex/tissues.gtex.txt | while read tissue; do
     tail -n+2 ../twas/output/twas_hits.gtextcga-full-$tissue.tsv | sed "s/^/$tissue\t/" >> repo/twas_hits.gtex-ddp.tsv
     tail -n+2 ../twas/output/twas_hits.gtex-residual-$tissue.tsv | sed "s/^/$tissue\t/" >> repo/twas_hits.gtex-rddp.tsv
+    for modality in alt_polyA alt_TSS expression isoforms splicing stability; do
+        tail -n+2 ../../pantry/twas/output/twas_hits.$tissue.$modality.tsv | sed "s/^/$tissue\t$modality\t/" >> repo/twas_hits.gtex-kdp.tsv
+    done
 done
 gzip -f repo/twas_hits.gtex-ddp.tsv
 gzip -f repo/twas_hits.gtex-rddp.tsv
+gzip -f repo/twas_hits.gtex-kdp.tsv
 
 echo "=== LaDDR models ==="
 tar -cjf repo/laddr_models/info_and_bins.tar.bz2 --owner=0 --group=0 -C ../phenos/gtextcga-full info gene_bins
@@ -62,5 +72,9 @@ tar -cjf repo/laddr_models/models-ddp.tar.bz2 --owner=0 --group=0 -C ../phenos/g
 tar -cjf repo/laddr_models/models-rddp.tar.bz2 --owner=0 --group=0 -C ../phenos/gtex-residual models
 
 tree repo > file_tree.txt
+cd repo
+for d in */; do
+    zip -r "${d%/}.zip" "$d"
+done
 
 echo "=== Done ==="

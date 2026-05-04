@@ -28,6 +28,7 @@ files_geuvadis = [
     'ddp-GEUVADIS.covar.tsv',
     'ddp-GEUVADIS.profile',
     'ddp-GEUVADIS.twas_hits.tsv.gz',
+    'kdp-GEUVADIS.twas_hits.tsv.gz',
     'hybrid-GEUVADIS.cis_independent_qtl.txt.gz',
     'hybrid-GEUVADIS.cis_qtl.txt.gz',
     'hybrid-GEUVADIS.covar.tsv',
@@ -48,6 +49,7 @@ files += [
     'qtls.gtex-hybrid.tsv.gz',
     'qtls.gtex-kdp.tsv.gz',
     'twas_hits.gtex-ddp.tsv.gz',
+    'twas_hits.gtex-kdp.tsv.gz',
     'twas_hits.gtex-rddp.tsv.gz',
 ]
 
