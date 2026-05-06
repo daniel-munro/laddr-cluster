@@ -31,6 +31,14 @@ rule all:
         ),
         expand("example_data/{example_id}/raw_coverage.tsv.gz", example_id=example_ids),
         expand(
+            "example_data/{example_id}/zoom_raw_coverage_bins.tsv.gz",
+            example_id=example_ids,
+        ),
+        expand(
+            "example_data/{example_id}/zoom_raw_coverage.tsv.gz",
+            example_id=example_ids,
+        ),
+        expand(
             "example_data/{example_id}/individual_genotypes.tsv.gz",
             example_id=example_ids,
         ),
@@ -93,12 +101,16 @@ rule extract_example_data:
         coverage="example_data/{example_id}/coverage.tsv.gz",
         raw_coverage_bins="example_data/{example_id}/raw_coverage_bins.tsv.gz",
         raw_coverage="example_data/{example_id}/raw_coverage.tsv.gz",
+        zoom_raw_coverage_bins=(
+            "example_data/{example_id}/zoom_raw_coverage_bins.tsv.gz"
+        ),
+        zoom_raw_coverage="example_data/{example_id}/zoom_raw_coverage.tsv.gz",
         individual_genotypes="example_data/{example_id}/individual_genotypes.tsv.gz",
     params:
         tissue=lambda w: example_tissue[w.example_id],
         gene_id=lambda w: example_gene[w.example_id],
         variant_id=lambda w: example_variant[w.example_id],
         coverage_dir="../data",
-        raw_coverage_bins=200,
+        raw_coverage_bins=2000,
     script:
         "scripts/extract_example_data.py"

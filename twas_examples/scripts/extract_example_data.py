@@ -38,19 +38,19 @@ def format_genotype_counts(genotypes, ref, alt):
     return genotypes
 
 
-def make_fixed_bins(gene, n_bins):
-    edges = np.linspace(gene["window_start"], gene["window_end"], n_bins + 1)
+def make_fixed_bins(region, n_bins):
+    edges = np.linspace(region["window_start"], region["window_end"], n_bins + 1)
     starts = np.floor(edges[:-1]).astype(int)
     ends = np.floor(edges[1:]).astype(int)
-    ends[-1] = int(gene["window_end"])
+    ends[-1] = int(region["window_end"])
 
     return pd.DataFrame(
         {
             "raw_bin_id": [f"raw_bin_{i:03d}" for i in range(n_bins)],
-            "seqname": gene["seqname"],
+            "seqname": region["seqname"],
             "start": starts,
             "end": ends,
-            "gene_id": gene["gene_id"],
+            "gene_id": region["gene_id"],
         }
     )
 
@@ -62,6 +62,20 @@ def summarize_bigwig(path, chrom, bins):
             for row in bins.itertuples(index=False)
         ]
     return [0.0 if value is None else value for value in values]
+
+
+def make_raw_coverage(sample_manifest, chrom, bins):
+    raw_coverage_values = [
+        summarize_bigwig(path, chrom, bins)
+        for path in sample_manifest["path"]
+    ]
+    return pd.concat(
+        [
+            sample_manifest[["sample_id", "individual_id"]].reset_index(drop=True),
+            pd.DataFrame(raw_coverage_values, columns=bins["raw_bin_id"]),
+        ],
+        axis=1,
+    )
 
 
 out_dir = Path(snakemake.output.coverage).parent
@@ -105,6 +119,18 @@ gene = genes.loc[genes["gene_id"] == gene_id].iloc[0]
 raw_coverage_bins = make_fixed_bins(gene, raw_coverage_n_bins)
 raw_coverage_bins.insert(1, "tissue", tissue)
 
+examples = pd.read_csv(snakemake.input.examples, sep="\t")
+example = examples.loc[
+    (examples["tissue"] == tissue)
+    & (examples["gene_id"] == gene_id)
+    & (examples["variant_id"] == variant_id)
+].iloc[0]
+zoom_region = gene.copy()
+zoom_region["window_start"] = int(example["zoom_start"])
+zoom_region["window_end"] = int(example["zoom_end"])
+zoom_raw_coverage_bins = make_fixed_bins(zoom_region, raw_coverage_n_bins)
+zoom_raw_coverage_bins.insert(1, "tissue", tissue)
+
 manifest = pd.read_csv(
     snakemake.input.coverage_manifest,
     sep="\t",
@@ -121,19 +147,17 @@ sample_manifest["path"] = sample_manifest["path"].map(
     lambda path: Path(snakemake.params.coverage_dir) / path
 )
 
-raw_coverage_values = [
-    summarize_bigwig(path, gene["seqname"], raw_coverage_bins)
-    for path in sample_manifest["path"]
-]
-raw_coverage = pd.concat(
-    [
-        sample_manifest[["sample_id", "individual_id"]].reset_index(drop=True),
-        pd.DataFrame(raw_coverage_values, columns=raw_coverage_bins["raw_bin_id"]),
-    ],
-    axis=1,
-)
+raw_coverage = make_raw_coverage(sample_manifest, gene["seqname"], raw_coverage_bins)
 raw_coverage.insert(2, "tissue", tissue)
 raw_coverage.insert(3, "gene_id", gene_id)
+
+zoom_raw_coverage = make_raw_coverage(
+    sample_manifest,
+    zoom_region["seqname"],
+    zoom_raw_coverage_bins,
+)
+zoom_raw_coverage.insert(2, "tissue", tissue)
+zoom_raw_coverage.insert(3, "gene_id", gene_id)
 
 raw = pd.read_csv(snakemake.input.genotypes, sep="\t")
 ref_count_col = f'{variant_id}_{variant["ref"]}'
@@ -170,6 +194,18 @@ raw_coverage_bins.to_csv(
 )
 raw_coverage.to_csv(
     snakemake.output.raw_coverage,
+    sep="\t",
+    index=False,
+    compression="gzip",
+)
+zoom_raw_coverage_bins.to_csv(
+    snakemake.output.zoom_raw_coverage_bins,
+    sep="\t",
+    index=False,
+    compression="gzip",
+)
+zoom_raw_coverage.to_csv(
+    snakemake.output.zoom_raw_coverage,
     sep="\t",
     index=False,
     compression="gzip",
