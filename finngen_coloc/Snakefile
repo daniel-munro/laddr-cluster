@@ -20,6 +20,8 @@ FINNGEN_TRAITS = config_path("finngen_traits")
 FINNGEN_SUMMARY_DIR = config_path("finngen_summary_dir")
 FINNGEN_SUMMARY_STATS_DIR = config_path("finngen_summary_stats_dir")
 COLOC_EXAMPLES = config_path("coloc_examples")
+QTL_LADDR_DIR = config_path("qtl_laddr_dir")
+RAW_COVERAGE_DIR = config_path("raw_coverage_dir")
 QTL_PHENO_DIR = config_path("qtl_pheno_dir")
 QTL_COVAR_DIR = config_path("qtl_covar_dir")
 QTL_GENO_PREFIX = config_path("qtl_geno_prefix")
@@ -44,6 +46,17 @@ if not example_rows:
 
 example_tissues = sorted({row["tissue"] for row in example_rows})
 example_traits = sorted({row.get("finngen_trait", row.get("trait")) for row in example_rows})
+example_ids = [f"example_{i}" for i in range(1, len(example_rows) + 1)]
+example_tissue = dict(zip(example_ids, [row["tissue"] for row in example_rows]))
+example_phenotype = dict(zip(example_ids, [row["phenotype_id"] for row in example_rows]))
+example_gene = {
+    example_id: phenotype_id.split(":", 1)[-1].split("__", 1)[0]
+    for example_id, phenotype_id in example_phenotype.items()
+}
+example_raw_coverage_files = [
+    OUTPUT_DIR / "example_raw_coverage" / example_id / "decile_median_coverage.tsv.gz"
+    for example_id in example_ids
+]
 
 if any(not trait for trait in example_traits):
     raise ValueError(f"Example table must contain trait or finngen_trait values in {COLOC_EXAMPLES}.")
@@ -59,6 +72,7 @@ rule all:
         OUTPUT_DIR / "coloc_examples.annotated.tsv",
         OUTPUT_DIR / "coloc_examples.qtl_region.tsv.gz",
         OUTPUT_DIR / "coloc_examples.finngen_region.tsv.gz",
+        example_raw_coverage_files,
 
 
 rule finngen_coloc:
@@ -138,6 +152,46 @@ rule index_example_bed:
         tbi=INTERMEDIATE_DIR / "examples" / "{tissue}.bed.gz.tbi",
     shell:
         "tabix -f -p bed {input.bed}"
+
+
+rule summarize_example_raw_coverage:
+    input:
+        genes=QTL_LADDR_DIR / "info" / "genes.tsv",
+        samples=lambda w: QTL_LADDR_DIR / "covg_norm" / example_tissue[w.example_id] / "samples.txt",
+        coverage_manifest=QTL_LADDR_DIR / "coverage_manifest.tsv",
+        phenotypes=lambda w: QTL_LADDR_DIR / "phenotypes" / f"latent_phenos.{example_tissue[w.example_id]}.tsv.gz",
+    output:
+        bins=OUTPUT_DIR / "example_raw_coverage" / "{example_id}" / "bins.tsv.gz",
+        decile_median_coverage=(
+            OUTPUT_DIR
+            / "example_raw_coverage"
+            / "{example_id}"
+            / "decile_median_coverage.tsv.gz"
+        ),
+    params:
+        tissue=lambda w: example_tissue[w.example_id],
+        gene_id=lambda w: example_gene[w.example_id],
+        phenotype_id=lambda w: example_phenotype[w.example_id],
+        coverage_dir=RAW_COVERAGE_DIR,
+        n_bins=config.get("raw_coverage_bins", 2000),
+        script=SNAKEFILE_DIR / "scripts" / "summarize_raw_coverage_by_phenotype.py",
+    resources:
+        mem_mb=32000,
+    shell:
+        """
+        python3 {params.script} \
+            --tissue {params.tissue} \
+            --gene-id {params.gene_id} \
+            --phenotype-id {params.phenotype_id} \
+            --genes {input.genes} \
+            --samples {input.samples} \
+            --coverage-manifest {input.coverage_manifest} \
+            --coverage-dir {params.coverage_dir} \
+            --phenotypes {input.phenotypes} \
+            --n-bins {params.n_bins} \
+            --out-bins {output.bins} \
+            --out-decile-median-coverage {output.decile_median_coverage}
+        """
 
 
 rule tensorqtl_example_nominal:
